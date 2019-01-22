@@ -1,0 +1,2 @@
+sudo route -nv add -net 224.0.0.0/4 -interface vnic1
+netstat -nr

@@ -1,0 +1,6 @@
+netstat -nr
+sudo route delete -net 224.0.0.0/4
+sudo route delete -host 239.255.10.2
+sudo route delete -host 239.255.255.250
+sudo route delete -net 255.255.255.255/32
+netstat -nr

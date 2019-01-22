@@ -1,0 +1,19 @@
+#!/bin/bash
+DATE=`date +%Y-%m-%d`
+SCANPATH=scan/$DATE
+echo doing $SCANPATH
+mkdir -p $SCANPATH
+cd $SCANPATH
+
+while :
+do
+    
+    for i in $(seq 473 6 800)
+    do
+	echo doing $i MHz
+	RUNTS=$(date +%s)
+	curl "http://127.0.0.1:8080/networktuner/tunefrequency?json=\{\"operating_mode\":\"ATSC3\",\"frequency_plan\":\"US_BROADCAST\",\"frequency_Hz\":"$i"000000\}"
+	sleep 10
+	curl --silent "http://127.0.0.1:8080/networktuner/querytuner" | json_reformat > $i-$RUNTS
+    done
+done

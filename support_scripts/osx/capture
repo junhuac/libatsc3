@@ -1,0 +1,1 @@
+sudo tcpdump -v -i vnic1 -s 65535 -w `date +%s`.pcap 
