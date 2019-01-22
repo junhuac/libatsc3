@@ -1,0 +1,3 @@
+wget 'http://127.0.0.1:8080/networktuner/tunefrequency?json={"operating_mode":"ATSC3","frequency_plan":"US_BROADCAST","frequency_Hz":'$1'000000, "plp0_id":0}'
+
+#,"plp0_id":0,"plp1_id":1,"plp2_id":2,"plp3_id":3}'

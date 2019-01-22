@@ -1,0 +1,6 @@
+FILE="test.pcap"
+
+while :
+do
+ sudo bittwist -i vnic1 test.pcap -v
+done
