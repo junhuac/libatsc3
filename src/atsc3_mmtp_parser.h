@@ -52,7 +52,7 @@
  */
 
 
-mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
+mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, uint8_t* udp_raw_buf, int udp_raw_buf_size);
 void mmtp_packet_header_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments);
 
 /**
@@ -68,7 +68,7 @@ void mmtp_packet_header_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragme
 mmtp_payload_fragments_union_t* mmtp_packet_header_allocate_from_raw_packet(block_t *raw_packet);
 
 //returns pointer from udp_raw_buf where we completed header parsing
-uint8_t* mmtp_packet_header_parse_from_raw_packet(mmtp_payload_fragments_union_t *mmtp_packet, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
+uint8_t* mmtp_packet_header_parse_from_raw_packet(mmtp_payload_fragments_union_t *mmtp_packet, uint8_t* udp_raw_buf, int udp_raw_buf_size);
 
 
 //think of this as castable to the base fields as they are the same size layouts

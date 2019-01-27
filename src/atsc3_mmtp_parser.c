@@ -17,10 +17,12 @@
 #include <limits.h>
 
 
-mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size) {
+mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, uint8_t* udp_raw_buf, int udp_raw_buf_size) {
 
 	mmtp_sub_flow_t *mmtp_sub_flow = NULL;
 	uint8_t* raw_packet_ptr = NULL;
+
+	_MMTP_DEBUG("mmtp_packet_parse: udp raw buf size: %d, raw_packet_ptr: %p, udp_raw_buf: %p", udp_raw_buf_size, raw_packet_ptr, udp_raw_buf);
 
 	int i_status = 0;
 	mmtp_payload_fragments_union_t* mmtp_payload_fragments = calloc(1, sizeof(mmtp_payload_fragments_union_t));
@@ -36,11 +38,14 @@ mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_s
 	mmtp_sub_flow_push_mmtp_packet(mmtp_sub_flow, mmtp_payload_fragments);
 
 	if(mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type == 0x0) {
-		uint8_t new_size = udp_raw_buf_size - (raw_packet_ptr - udp_raw_buf);
+		_MMTP_DEBUG("before: mmt_parse_payload: udp raw buf size: %d, raw_packet_ptr: %p, udp_raw_buf: %p", udp_raw_buf_size, raw_packet_ptr, udp_raw_buf);
+		int new_size = udp_raw_buf_size - (raw_packet_ptr - udp_raw_buf);
 
 		mmt_parse_payload(mmtp_sub_flow_vector, mmtp_payload_fragments, raw_packet_ptr, new_size);
 
 		if(mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
+
+			//			_MTP_INFO
 			//timed
 		} else {
 			//non-timed
@@ -61,9 +66,9 @@ mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_s
 
 failed:
 	if(mmtp_payload_fragments) {
-			free(mmtp_payload_fragments);
-			mmtp_payload_fragments = NULL;
-		}
+		free(mmtp_payload_fragments);
+		mmtp_payload_fragments = NULL;
+	}
 	return NULL;
 
 }
@@ -209,7 +214,7 @@ void mmtp_sub_flow_push_mmtp_packet(mmtp_sub_flow_t *mmtp_sub_flow, mmtp_payload
 
 
 //returns pointer from udp_raw_buf where we completed header parsing
-uint8_t* mmtp_packet_header_parse_from_raw_packet(mmtp_payload_fragments_union_t *mmtp_packet, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size) {
+uint8_t* mmtp_packet_header_parse_from_raw_packet(mmtp_payload_fragments_union_t *mmtp_packet, uint8_t* udp_raw_buf, int udp_raw_buf_size) {
 
 	if(udp_raw_buf_size < 20) {
 		//bail, the min header is at least 20 bytes
