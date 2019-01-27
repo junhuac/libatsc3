@@ -1,0 +1,370 @@
+
+
+data_type definitions:
+
+V1 Data Types
+-------------
+
+Value		Data Type					Definition of data unit
+-----		---------					-----------------------
+0x0			MPU							media-aware fragment of hte MPU
+0x1			generic object				generic object such as a complete MPU or object of another type
+0x2			signalling message			one or more signaling messages or a fragment of a signaling message
+0x3			repair symbol				a single complete repair symbol
+0x4 ~ 0x9	reserved for iso use		for ISO use
+0xA ~ 0xF	reserved for private use	for private use
+
+
+
+<10.1> Signalling - General
+
+Eight types of signalling message for package consumption:
+
+	PA:  	package access, contains tables for all tables required for package access
+	MPI: 	media presentation information, contains presentation information document
+	MPT: 	MMT package table for single package consumption
+	CRI: 	clock related information, maps between NTP and MPEG-2 system time clock
+	DCI: 	device capability message
+	SSWR: 	security software request, request security software for consuming a package or asset
+	LS:		licensing signalling, carries license information targeted to a specific MMT receiving entity or group of receivers
+	LR: 	license revocation, used for revocation for a user or group of users
+
+Nine types of signalling for package delivery:
+
+	HRBM:	provide information to configure a HRBM operation
+	MC:		measurement configuration message, provide information for measurement of delivery quality
+	ARQ-AC:	automatic repeat-request (ARQ) configuration message (AC)
+	ARQ-AF:	automatic repeat-request (ARQ) feedback message (AF)
+	RQF:	reception quality feedback for reporting by MMT receiving entity
+	MANF:	NAM feedback bessage, provide information of the NAM parameter by an MMT receving entity
+	LDC:	information required to decode and present media data by MMT receiving entity before receving metadata such as movie fragment headers
+	HRBMR:	management of MMT de-encapsulation buffer depending on operation mode of client
+	ADC:	asset delivery characteristic message, used to configure network delivery resource
+	
+
+
+
+<10.2> Signalling message format
+
+three common fields, one specific field, message payload:
+
+
+general format of MMT signalling messages:
+
+syntax							no. bits	mnemonic
+------							--------	--------
+signalling_message() {	
+	message_id					16			uimbsf 		See 10.7 below
+	version						8			uimbsf
+	
+	if(message_id != PA_message && message_id != MPI_message)
+		length					16			uimbsf
+	else
+		length					32
+		
+	extension
+		message_payload {
+	}
+}
+	
+	
+<10.3.2> PA message
+
+Package Access contains:
+	PA Table, 
+	MPI Table (complete or subset 0)
+	MP Table  (complete or subset 0)
+	CRI Table
+	DCI Table
+
+PA_message() {
+	signaling_message() 		40
+	
+	extension {
+		number_of_tables	N1	8
+		for(i=0; i<N1; i++) {
+			table_id			8
+			table_version		8
+			table_length		16
+		}	
+	}
+	
+	message_payload {
+		for(i=0; i<N1; i++)
+			table()
+		}		
+	}
+}
+
+<10.3.7.2> PA table
+
+
+
+MPI Message - Media Presentation Information
+presentation information document
+
+
+
+MPT table: MMT package table
+
+
+Syntax												Value		No. bits	Mnemonic
+------------										--------	---------	---------
+MP_table() {
+	table_id													8			uimsbf
+	version														8
+	length														16
+	reserved										"11 1111"	6			bslbf
+	MP_table_mode
+	if ((table_id == 0x20) or (table_id == 0x11)) {				2
+    	MMT_package_id {							N1	
+      		MMT_package_id_length								8
+      		for (i=0; i<N1; i++) {
+          		MMT_package_id_byte								8
+			}
+		}
+		
+    	MP_table_descriptors {						N2
+    		MP_table_descriptors_length							16
+   			for (i=0; i<N2; i++) {
+				MP_table_descriptors_byte						8
+			}
+		}
+	}
+	number_of_assets								N3			8
+	for (i=0; i<N3; i++) {
+		Identifier_mapping()
+		asset_type												32
+		reserved									"1111 11"	6
+		default_asset_flag										1
+		asset_clock_relation_flag								1
+		if (asset_clock_relation_flag == 1) {
+			asset_clock_relation_id 							8
+			reserved								"1111 111"	7
+			asset_timescale_flag								1
+			if (asset_time_scale_flag == 1) {
+	            asset_timescale									32
+			} 
+		}
+		
+		asset_location {
+        	location_count							N4			8
+         	for (i=0; i<N4; i++) {
+         		MMT_general_location_info()
+			}
+		}
+     	asset_descriptors {
+        	asset_descriptors_length				N5			16
+        	for (j=0; j<N5; j++) {
+            	asset_descriptors_byte							8
+			}
+		}
+	}
+ }
+ 
+ 
+ 10.5.4 GFDT descriptor
+ 
+ 
+ 10.6.1 MMT_general_location_info
+ 
+ 
+ 10.7 ID and tags values
+	 
+	 Message Identifier (message_id) values
+		 
+		 Value				Description
+		 -----				-----------
+		 0x0000				PA message
+		 0x0001 ~ 0x0010	MPI message
+		 0x0011 ~ 0x0020	MPT message
+		 0x0021 ~ 0x01FF	Reserved
+		 
+		 0x0200				CRI message
+		 0x0201				DCI message
+		 0x0202				SSWR message
+		 0x0203				AL_FEC message
+		 0x0204				HRBM message
+		 0x0205				MC message
+		 0x0206				AC message
+		 0x0207				AF message
+		 0x0208				RQF message
+		 0x0209				ADC message
+		 0x020A				HRB removal message
+		 0x020B				LS message
+		 0x020C				LR message
+		 0x020D				NAMF message
+		 0x020E				LDC message
+		 
+		 0x020F ~ 0x6FFF	Reserved for ISO (16 bit)
+		 0x7000 ~ 0x7FFF	Reserved for ISO (32 bit)
+		 
+		 0x8000 ~ 0xFFFF	Reserved for private use
+		 
+		 
+	 
+ 	Table Identifier (table_id) values
+ 	
+ 		Value				Description
+ 		-----				-----------
+ 		0x00				PA table
+ 		0x01				Main PI (subset 0 of MPI table)
+ 		0x02 ~ 0x0F			Subset 1 MPI table ~ Subset 14 MPI table
+ 		0x10				Complete MPI table
+ 		0x11 ~ 0x1F			Subset 0 MP table ~ Subset 14 MP table
+ 		0x20				Complete MP table
+ 		0x21				CRI table
+ 		0x22				DCI table
+ 		0x23				SIT table
+ 		0x24 ~ 0x7F			Reserved for ISO (16 bit)
+ 		0x80 ~ 0xFF			Reserved for private use
+ 		
+ 		
+ 	Descriptor tag values
+ 	
+ 		Value				Description
+ 		-----				-----------
+ 		0x0000				CRI descriptor
+ 		0x0001				MPU timestamp descriptor
+ 		0x0002				Dependency descriptor
+ 		0x0003				GFDT descriptor
+ 		0x0004				SI descriptor
+ 		0x0005 ~ 0x3FFF		ISO 8bit
+ 		0x4000 ~ 0x6FFF		ISO 16bit
+ 		0x7000 ~ 0x7FFF		ISO 32bit
+ 		0x8000 ~ 0xFFFF		Reserved for private use
+ 		
+ 		
+ 		
+ 		
+ 
+Samples:
+ 
+MPT:
+
+Full Table
+
+signal message_id: 32 (0x20) = complete message table
+
+0000   61 02 00 00 c1 80 6b fc 00 07 33 17 02 06 c6 e2   a...Á.kü..3...Æâ
+0010   9b ff 3c 01 00 20 01 00 56 20 01 00 52 fc 05 44   .ÿ<.. ..V ..Rü.D
+0020   53 42 2d 31 00 00 02 00 00 00 00 00 00 00 00 10   SB-1............
+0030   11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11   ................
+0040   68 65 76 31 fe 01 00 00 23 00 00 00 00 00 00 00   hev1þ...#.......
+0050   00 00 00 10 22 22 22 22 22 22 22 22 22 22 22 22   ....""""""""""""
+0060   22 22 22 22 6d 70 34 61 fe 01 00 00 24 00 00      """"mp4aþ...$..
+
+hex stream:
+61020000c1806bfc000733170206c6e29bff3c01002001005620010052fc054453422d310000020000000000000000101111111111111111111111111111111168657631fe010000230000000000000000000010222222222222222222222222222222226d703461fe010000240000
+
+
+signal message_id: 	18 (0x12)
+mp_table.table_id: 	18 (0x12) 
+packet_id: 			35 (0x23)
+
+Asset Type:			hev1
+
+0000   62 02 00 23 40 04 00 00 01 a4 d4 f8 02 06 c7 09   b..#@....¤Ôø..Ç.
+0010   a4 00 00 00 00 12 1c 00 3f 12 1c 00 3b 04 01 00   ¤.......?...;...
+0020   00 00 00 00 00 00 00 10 11 11 11 11 11 11 11 11   ................
+0030   11 11 11 11 11 11 11 11 68 65 76 31 fd 00 ff 00   ........hev1ý.ÿ.
+0040   01 5f 90 01 00 00 23 00 0f 00 01 0c 00 01 ba 53   ._....#.......ºS
+0050   df c4 40 04 3b e7 6f ff                           ßÄ@.;çoÿ
+
+hex stream:
+620200234004000001a4d4f80206c709a400000000121c003f121c003b04010000000000000000101111111111111111111111111111111168657631fd00ff00015f9001000023000f00010c0001ba53dfc440043be76fff
+
+
+signal message_id: 	19 (0x13)
+mp_table.table_id: 	19 (0x13)
+packet_id:			36 (0x24)
+
+Asset Type: 		mp4a
+
+0000   62 02 00 24 40 04 00 00 00 5a bf 00 02 06 c7 34   b..$@....Z¿...Ç4
+0010   a4 00 00 00 00 13 27 00 3f 13 27 00 3b 04 01 00   ¤.....'.?.'.;...
+0020   00 00 00 00 00 00 00 10 22 22 22 22 22 22 22 22   ........""""""""
+0030   22 22 22 22 22 22 22 22 6d 70 34 61 fd 00 ff 00   """"""""mp4aý.ÿ.
+0040   01 5f 90 01 00 00 24 00 0f 00 01 0c 00 01 ba 53   ._....$.......ºS
+0050   df c4 40 04 40 da 6f ff                           ßÄ@.@Úoÿ
+
+hex stream:
+6202002440040000005abf000206c734a4000000001327003f1327003b0401000000000000000010222222222222222222222222222222226d703461fd00ff00015f9001000024000f00010c0001ba53dfc4400440da6fff
+
+
+< ISO/IEC 23008-1:2017 >
+
+
+notes:  ATSC 3.0 includes additional SI information -
+
+	signalling 
+	message_id		Content Type
+	-----------		------------
+	0x8100			USBD - XML BundleDescriptionMMT
+	
+USBD: Service ID: 1002 (0x03EA)
+
+0000   61 02 00 00 c1 80 ec 01 00 07 33 18 02 06 c7 72   a...Á.ì...3...Çr
+0010   9b ff 3c 01 81 00 00 00 00 03 4e 03 ea 00 01 00   .ÿ<.......N.ê...
+0020   01 00 00 00 03 43 3c 3f 78 6d 6c 20 76 65 72 73   .....C<?xml vers
+0030   69 6f 6e 3d 22 31 2e 30 22 20 65 6e 63 6f 64 69   ion="1.0" encodi
+0040   6e 67 3d 22 75 74 66 2d 38 22 3f 3e 0a 3c 42 75   ng="utf-8"?>.<Bu
+0050   6e 64 6c 65 44 65 73 63 72 69 70 74 69 6f 6e 4d   ndleDescriptionM
+0060   4d 54 20 78 6d 6c 6e 73 3d 22 74 61 67 3a 61 74   MT xmlns="tag:at
+0070   73 63 2e 6f 72 67 2c 32 30 31 36 3a 58 4d 4c 53   sc.org,2016:XMLS
+0080   63 68 65 6d 61 73 2f 41 54 53 43 33 2f 44 65 6c   chemas/ATSC3/Del
+0090   69 76 65 72 79 2f 4d 4d 54 55 53 44 2f 31 2e 30   ivery/MMTUSD/1.0
+00a0   2f 22 20 78 6d 6c 6e 73 3a 73 61 3d 22 74 61 67   /" xmlns:sa="tag
+00b0   3a 61 74 73 63 2e 6f 72 67 2c 32 30 31 36 3a 58   :atsc.org,2016:X
+00c0   4d 4c 53 63 68 65 6d 61 73 2f 41 54 53 43 33 2f   MLSchemas/ATSC3/
+00d0   53 41 2f 31 2e 30 2f 22 20 78 6d 6c 6e 73 3a 78   SA/1.0/" xmlns:x
+00e0   73 3d 22 68 74 74 70 3a 2f 2f 77 77 77 2e 77 33   s="http://www.w3
+00f0   2e 6f 72 67 2f 32 30 30 31 2f 58 4d 4c 53 63 68   .org/2001/XMLSch
+0100   65 6d 61 22 20 78 6d 6c 6e 73 3a 78 73 69 3d 22   ema" xmlns:xsi="
+0110   68 74 74 70 3a 2f 2f 77 77 77 2e 77 33 2e 6f 72   http://www.w3.or
+0120   67 2f 32 30 30 31 2f 58 4d 4c 53 63 68 65 6d 61   g/2001/XMLSchema
+0130   2d 69 6e 73 74 61 6e 63 65 22 20 78 73 69 3a 73   -instance" xsi:s
+0140   63 68 65 6d 61 4c 6f 63 61 74 69 6f 6e 3d 22 74   chemaLocation="t
+0150   61 67 3a 61 74 73 63 2e 6f 72 67 2c 32 30 31 36   ag:atsc.org,2016
+0160   3a 58 4d 4c 53 63 68 65 6d 61 73 2f 41 54 53 43   :XMLSchemas/ATSC
+0170   33 2f 44 65 6c 69 76 65 72 79 2f 4d 4d 54 55 53   3/Delivery/MMTUS
+0180   44 2f 31 2e 30 2f 20 4d 4d 54 55 53 44 2d 31 2e   D/1.0/ MMTUSD-1.
+0190   30 2d 32 30 31 37 30 39 32 32 2e 78 73 64 22 3e   0-20170922.xsd">
+01a0   3c 55 73 65 72 53 65 72 76 69 63 65 44 65 73 63   <UserServiceDesc
+01b0   72 69 70 74 69 6f 6e 20 73 65 72 76 69 63 65 49   ription serviceI
+01c0   64 3d 22 31 30 30 32 22 3e 3c 43 68 61 6e 6e 65   d="1002"><Channe
+01d0   6c 20 73 65 72 76 69 63 65 49 63 6f 6e 3d 22 73   l serviceIcon="s
+01e0   65 72 76 69 63 65 5f 69 63 6f 6e 22 3e 3c 53 65   ervice_icon"><Se
+01f0   72 76 69 63 65 44 65 73 63 72 69 70 74 69 6f 6e   rviceDescription
+0200   20 73 65 72 76 69 63 65 44 65 73 63 72 54 65 78    serviceDescrTex
+0210   74 3d 22 41 54 45 4d 45 5f 4d 4d 54 5f 32 22 20   t="ATEME_MMT_2" 
+0220   73 65 72 76 69 63 65 44 65 73 63 72 4c 61 6e 67   serviceDescrLang
+0230   3d 22 65 6e 22 2f 3e 3c 2f 43 68 61 6e 6e 65 6c   ="en"/></Channel
+0240   3e 3c 4d 50 55 43 6f 6d 70 6f 6e 65 6e 74 20 6d   ><MPUComponent m
+0250   6d 74 50 61 63 6b 61 67 65 49 64 3d 22 41 54 45   mtPackageId="ATE
+0260   4d 45 5f 4d 4d 54 5f 32 22 2f 3e 3c 43 6f 6d 70   ME_MMT_2"/><Comp
+0270   6f 6e 65 6e 74 49 6e 66 6f 20 63 6f 6d 70 6f 6e   onentInfo compon
+0280   65 6e 74 54 79 70 65 3d 22 30 22 20 63 6f 6d 70   entType="0" comp
+0290   6f 6e 65 6e 74 52 6f 6c 65 3d 22 30 22 20 63 6f   onentRole="0" co
+02a0   6d 70 6f 6e 65 6e 74 49 64 3d 22 32 32 32 32 32   mponentId="22222
+02b0   32 32 32 2d 32 32 32 32 2d 32 32 32 32 2d 32 32   222-2222-2222-22
+02c0   32 32 2d 32 32 32 32 32 32 32 32 32 32 32 32 22   22-222222222222"
+02d0   2f 3e 3c 43 6f 6d 70 6f 6e 65 6e 74 49 6e 66 6f   /><ComponentInfo
+02e0   20 63 6f 6d 70 6f 6e 65 6e 74 54 79 70 65 3d 22    componentType="
+02f0   31 22 20 63 6f 6d 70 6f 6e 65 6e 74 52 6f 6c 65   1" componentRole
+0300   3d 22 30 22 20 63 6f 6d 70 6f 6e 65 6e 74 49 64   ="0" componentId
+0310   3d 22 31 31 31 31 31 31 31 31 2d 31 31 31 31 2d   ="11111111-1111-
+0320   31 31 31 31 2d 31 31 31 31 2d 31 31 31 31 31 31   1111-1111-111111
+0330   31 31 31 31 31 31 22 2f 3e 3c 2f 55 73 65 72 53   111111"/></UserS
+0340   65 72 76 69 63 65 44 65 73 63 72 69 70 74 69 6f   erviceDescriptio
+0350   6e 3e 3c 2f 42 75 6e 64 6c 65 44 65 73 63 72 69   n></BundleDescri
+0360   70 74 69 6f 6e 4d 4d 54 3e                        ptionMMT>
+
+
+USBD hex dump:
+61020000c180ec01000733180206c7729bff3c018100000000034e03ea0001000100000003433c3f786d6c2076657273696f6e3d22312e302220656e636f64696e673d227574662d38223f3e0a3c42756e646c654465736372697074696f6e4d4d5420786d6c6e733d227461673a617473632e6f72672c323031363a584d4c536368656d61732f41545343332f44656c69766572792f4d4d545553442f312e302f2220786d6c6e733a73613d227461673a617473632e6f72672c323031363a584d4c536368656d61732f41545343332f53412f312e302f2220786d6c6e733a78733d22687474703a2f2f7777772e77332e6f72672f323030312f584d4c536368656d612220786d6c6e733a7873693d22687474703a2f2f7777772e77332e6f72672f323030312f584d4c536368656d612d696e7374616e636522207873693a736368656d614c6f636174696f6e3d227461673a617473632e6f72672c323031363a584d4c536368656d61732f41545343332f44656c69766572792f4d4d545553442f312e302f204d4d545553442d312e302d32303137303932322e787364223e3c55736572536572766963654465736372697074696f6e207365727669636549643d2231303032223e3c4368616e6e656c207365727669636549636f6e3d22736572766963655f69636f6e223e3c536572766963654465736372697074696f6e20736572766963654465736372546578743d224154454d455f4d4d545f3222207365727669636544657363724c616e673d22656e222f3e3c2f4368616e6e656c3e3c4d5055436f6d706f6e656e74206d6d745061636b61676549643d224154454d455f4d4d545f32222f3e3c436f6d706f6e656e74496e666f20636f6d706f6e656e74547970653d22302220636f6d706f6e656e74526f6c653d22302220636f6d706f6e656e7449643d2232323232323232322d323232322d323232322d323232322d323232323232323232323232222f3e3c436f6d706f6e656e74496e666f20636f6d706f6e656e74547970653d22312220636f6d706f6e656e74526f6c653d22302220636f6d706f6e656e7449643d2231313131313131312d313131312d313131312d313131312d313131313131313131313131222f3e3c2f55736572536572766963654465736372697074696f6e3e3c2f42756e646c654465736372697074696f6e4d4d543e
+	
+	
+	
+	
+	

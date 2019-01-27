@@ -1,0 +1,59 @@
+5.1.1 Recovery in MPU mode
+
+When operating in the MPU mode, the object flow consists of MPUs of the same asset. Each MPU is a single object in the object flow and shares the same packet_id as all MPUs of the same asset. 
+
+The MMT receiving entity performs the following steps:
+
+1.	Receive MMTP packet
+2.	Check if packet_id is equal to the packet_id of the object flow of interest, discard packet and goto step 1 if it does not belong to an object flow of interest
+3.	Assert that type of the MMTP packet is MPU
+4.	If fragmentation flags are set (different than ‘00’)
+	a.	If fragmentation flag is equal to ‘11’, attempt to recover packet and if successful go to step 6
+	b.	[sic]Else 
+		i.If object map with same MPU_sequence_number does not exist, create new object map for the MPU with that sequence number
+		ii. add packet to the list of packet fragments based on [packet_id][mpu_sequence_number] and goto step 1
+		
+5.	If Aggregation flag A is set, extract all aggregated data units and proceed to step 7 for each extracted data unit
+-6.	If object map with same MPU_sequence_number does not exist, create new object map for the MPU with that sequence number-[sic]
+
+7.	Check fragment type (FT) of the MPU payload header
+
+	a.	If FT is MPU metadata 
+		i.	check if MPU metadata is already received
+			1.	If yes, discard the MPU metadata as being a duplicate
+			2.	Else insert MPU metadata at the beginning of the object map
+				a.	Optionally, forward MPU metadata to application
+		ii.	goto step 1
+		
+	b.	If FT is Fragment metadata
+		i.	Check if movie fragment with the same movie_fragment_sequence_number already exists
+			1.	If no, create a placeholder for the movie fragment in the object map
+			2.	Else, check if Fragment metadata has already been received
+				a.	If yes, discard fragment metadata as being a duplicate
+				b.	Otherwise, insert fragment metadata at the beginning of the fragment placeholder
+			3.	Goto step 1 
+			
+	c.	If FT is MFU
+		i.	If fragment placeholder with sequence number movie_fragment_sequence_number does not exist in the object map of the MPU with sequence number MPU_sequence_number, then create movie fragment placeholder in the object map of the MPU
+		ii.	If timed metadata flag is set
+			1.	Insert payload in the fragment placeholder in the correct order based on the sample_number and offset values
+			2.	Check if movie fragment is complete
+				a.	If yes, forward fragment to the application
+			3.	Goto step 1
+		iii.	If timed metadata flag is not set
+			1.	Insert payload in the item in the object map based on the item item_ID
+			2.	Recover item information from MPU metadata for the recovered item and forward the item to the application
+			3.	Goto step 1
+
+
+The sender may send the movie fragment out of order, i.e. sending the movie fragment header after sending all the media units that are contained in that movie fragment. At the receiver side, step 7.c.i ensures that the movie fragment is recovered appropriately by reordering the received data using the MPU_sequence_number and the movie_fragment_sequence_number. This is necessary if the receiver is operating in the Fragment mode or MPU mode, where only complete movie fragments or complete MPUs are forwarded to the application. When operating in the very low delay mode, the receiver will forward every single MFU to the application. In this case, it has to make sure that the content supports this operation, so that MFUs will be self-describing and self-contained. In particular, the receiver must be able to recover the presentation timestamp of that MFU payload using the sample number, fragment_sequence_number, and MPU_sequence_number,
+For fragments and items that cannot be recovered correctly by the time the fixed end to end delivery delay passes, error concealment is performed on the movie fragment or the partially recovered item.
+
+< iso/iec pdtr 23008-13 2nd edition >
+
+
+
+*notes 
+
+MMTHSample.sequence_number is only present on the first MFU, e.g. mmtp_payload_type==0x00 && mpu_fragment_type==0x02 && mpu_fragmentation_indicator == 0x01
+-> RE step 4.b, I think the authors meant recovery[packet_id][mpu_sequence_number], as there is no "MMTP sequence number" defined in the MMTP spec, it is packet_sequence_number, 
