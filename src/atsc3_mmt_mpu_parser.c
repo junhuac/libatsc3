@@ -24,7 +24,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 	uint8_t *buf = udp_raw_buf;
 
 	//create a sub_flow with this packet_id
-	_MPU_DEBUG( "mmtp_demuxer, after mmtp_packet_header_parse_from_raw_packet, mmtp_packet_id is: %d, mmtp_payload_type: 0x%x, packet_counter: %d, remaining len: %d, mmtp_raw_packet_size: %d, buf: %p, raw_buf:%p",
+	_MPU_DEBUG( "mmtp_demuxer, after mmtp_packet_header_parse_from_raw_packet, mmtp_packet_id is: %d, mmtp_payload_type: 0x%x, packet_counter: %d, remaining len: %lu, mmtp_raw_packet_size: %d, buf: %p, raw_buf:%p",
 			mmtp_packet_header->mmtp_packet_header.mmtp_packet_id,
 			mmtp_packet_header->mmtp_packet_header.mmtp_payload_type,
 			mmtp_packet_header->mmtp_packet_header.packet_counter,
@@ -305,7 +305,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 						//end reading of mmthsample box
 					}
 
-					_MPU_DEBUG("mpu mode (0x02), non-timed MFU, item_id is: %zu", mmtp_packet_header->mpu_data_unit_payload_fragments_nontimed.non_timed_mfu_item_id);
+					_MPU_DEBUG("mpu mode (0x02), non-timed MFU, item_id is: %u", mmtp_packet_header->mpu_data_unit_payload_fragments_nontimed.non_timed_mfu_item_id);
 					to_read_packet_length = udp_raw_buf_size - (buf - raw_buf);
 				}
 
@@ -323,11 +323,11 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 				tmp_mpu_fragment->i_buffer = to_read_packet_length;
 
 
-				mmtp_packet_header->mmtp_mpu_type_packet_header.mpu_data_unit_payload = block_Duplicate(tmp_mpu_fragment);
+				mmtp_packet_header->mmtp_mpu_type_packet_header.mpu_data_unit_payload = tmp_mpu_fragment;
 
 				//send off only the CLEAN mdat payload from our MFU
 				remainingPacketLen = udp_raw_buf_size - (buf - raw_buf);
-				_MPU_TRACE( "after reading fragment packet: remainingPacketLen: %d",	remainingPacketLen);
+				_MPU_TRACE( "after reading fragment packet: remainingPacketLen: %d", remainingPacketLen);
 
 			}
 
