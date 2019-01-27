@@ -6,3 +6,5 @@
 /atsc3_lls_slt_parser_test
 /atsc3_lls_SystemTime_test
 /atsc3_lls_test
+/atsc3_lls_listener_test
+/atsc3_lmt_test
