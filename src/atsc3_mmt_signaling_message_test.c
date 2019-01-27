@@ -5,6 +5,7 @@
  */
 
 #include "atsc3_mmtp_types.h"
+#include "atsc3_mmtp_parser.h"
 #include "atsc3_mmt_signaling_message.h"
 
 #include <stdbool.h>
