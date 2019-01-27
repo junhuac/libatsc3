@@ -301,7 +301,25 @@ void signaling_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragmen
 
 	//_MMSM_INFO("--------------------------------------");
 
+	if(mmtp_payload_fragments->mmtp_signalling_message_fragments.message_id == PA_message) {
+		pa_message_dump(mmtp_payload_fragments);
+	} else if(mmtp_payload_fragments->mmtp_signalling_message_fragments.message_id >= MPI_message_start && mmtp_payload_fragments->mmtp_signalling_message_fragments.message_id < MPI_message_end) {
+		mpi_message_dump(mmtp_payload_fragments);
+	} else if(mmtp_payload_fragments->mmtp_signalling_message_fragments.message_id >= MPT_message_start && mmtp_payload_fragments->mmtp_signalling_message_fragments.message_id < MPT_message_end) {
+		mpt_message_dump(mmtp_payload_fragments);
+	}
 }
 
+void pa_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments) {
+
+}
+
+void mpi_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments) {
+
+}
+
+void mpt_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments) {
+
+}
 
 

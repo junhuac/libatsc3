@@ -196,14 +196,20 @@ typedef struct mmt_signaling_message_mpu_timestamp_descriptor {
 
 
 uint8_t* signaling_message_parse_payload_header(mmtp_payload_fragments_union_t* si_message, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
+uint8_t* signaling_message_parse_payload_table(mmtp_payload_fragments_union_t *si_message, uint8_t* udp_raw_buf, uint8_t buf_size);
 
 uint8_t* pa_message_parse(mmtp_payload_fragments_union_t* si_message, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
 uint8_t* mpi_message_parse(mmtp_payload_fragments_union_t* si_message, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
 uint8_t* mpt_message_parse(mmtp_payload_fragments_union_t* si_message, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
-uint8_t* signaling_message_parse_payload_table(mmtp_payload_fragments_union_t *si_message, uint8_t* udp_raw_buf, uint8_t buf_size);
 
 uint8_t* si_message_not_supported(mmtp_payload_fragments_union_t* si_message, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size);
 
+
+
 void signaling_message_dump(mmtp_payload_fragments_union_t* si_message);
+void pa_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments);
+void mpi_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments);
+void mpt_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragments);
+
 
 #endif /* MODULES_DEMUX_MMT_ATSC3_MMT_SIGNALING_MESSAGE_H_ */

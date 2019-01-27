@@ -27,7 +27,7 @@ atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst.
  */
 
 //#define _ENABLE_TRACE 1
-#define _SHOW_PACKET_FLOW 1
+//#define _SHOW_PACKET_FLOW 1
 
 
 #define LLS_DST_ADDR 3758102332
@@ -167,6 +167,8 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	//4294967295
 	//1234567890
+#ifdef __ENABLE_TRACE
+
 	__DEBUGF("Src. Addr  : %d.%d.%d.%d\t(%-10u)\t", ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr);
 	__DEBUGN("Src. Port  : %-5hu ", (udp_header[0] << 8) + udp_header[1]);
 	__DEBUGF("Dst. Addr  : %d.%d.%d.%d\t(%-10u)\t", ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr);
@@ -174,6 +176,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	__TRACE("Length\t\t\t\t\t%d", (udp_header[4] << 8) + udp_header[5]);
 	__TRACE("Checksum\t\t\t\t0x%02x 0x%02x", udp_header[6], udp_header[7]);
+#endif
 
 	udp_packet->data_length = pkthdr->len - (udp_header_start + 8);
 	if(udp_packet->data_length <=0 || udp_packet->data_length > 1514) {
