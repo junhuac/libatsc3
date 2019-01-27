@@ -1,8 +1,10 @@
 /*
- * atsc3_lls_listener_test.c
+ * atsc3_listener_test.c
  *
  *  Created on: Jan 19, 2019
  *      Author: jjustman
+ *
+ * global listener driver for LLS, MMT and ROUTE / DASH (coming soon)
  *
  *
  * borrowed from https://stackoverflow.com/questions/26275019/how-to-read-and-send-udp-packets-on-mac-os-x
@@ -14,21 +16,12 @@
 
   to invoke test driver, run ala:
 
-  ./atsc3_lls_listener_test vnic1 | grep 224.0.23.60
-
-  output should look like
-
-
-atsc3_lls_listener_test.c:100:DEBUG:Destination Address		239.255.10.4
-
-atsc3_lls_listener_test.c:99:DEBUG:Source Address			192.168.0.4
-
-atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst. Port    : 4937  	Data length: 193
- */
+  ./atsc3_listener_test vnic1
+*/
 
 //#define _ENABLE_TRACE 1
 //#define _SHOW_PACKET_FLOW 1
-
+int PACKET_COUNTER=0;
 
 #define LLS_DST_ADDR 3758102332
 #define LLS_DST_PORT 4937
@@ -43,8 +36,14 @@ atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst.
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <string.h>
-
+#include <sys/stat.h>
+#include "atsc3_mmtp_types.h"
 #include "atsc3_lls.h"
+#include "atsc3_mmtp_parser.h"
+
+extern int _MPU_DEBUG_ENABLED;
+extern int _MMTP_DEBUG_ENABLED;
+extern int _LLS_DEBUG_ENABLED;
 
 #define println(...) printf(__VA_ARGS__);printf("\n")
 
@@ -99,7 +98,109 @@ typedef struct udp_packet {
 
 } udp_packet_t;
 
-int PACKET_COUNTER = 0;
+uint32_t* dst_ip_addr_filter = NULL;
+uint16_t* dst_ip_port_filter = NULL;
+
+//make sure to invoke     mmtp_sub_flow_vector_init(&p_sys->mmtp_sub_flow_vector);
+mmtp_sub_flow_vector_t* mmtp_sub_flow_vector;
+void dump_mpu(mmtp_payload_fragments_union_t* mmtp_payload) {
+
+	__INFO("------------------");
+
+	if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag) {
+		__INFO("MFU Packet (Timed)");
+		__INFO("-----------------");
+		__INFO(" mpu_fragmentation_indicator: %d", mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_fragment_type);
+		__INFO(" movie_fragment_seq_num: %u", mmtp_payload->mpu_data_unit_payload_fragments_timed.movie_fragment_sequence_number);
+		__INFO(" sample_num: %u", mmtp_payload->mpu_data_unit_payload_fragments_timed.sample_number);
+		__INFO(" offset: %u", mmtp_payload->mpu_data_unit_payload_fragments_timed.offset);
+		__INFO(" pri: %d", mmtp_payload->mpu_data_unit_payload_fragments_timed.priority);
+		__INFO(" mpu_sequence_number: %u",mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number);
+
+	} else {
+		__INFO("MFU Packet (Non-timed)");
+		__INFO("---------------------");
+		__INFO(" mpu_fragmentation_indicator: %d", mmtp_payload->mpu_data_unit_payload_fragments_nontimed.mpu_fragment_type);
+		__INFO(" non_timed_mfu_item_id: %u", mmtp_payload->mpu_data_unit_payload_fragments_nontimed.non_timed_mfu_item_id);
+
+	}
+
+	__INFO("-----------------");
+}
+
+void mpu_dump_flow(uint32_t dst_ip, uint16_t dst_port, mmtp_payload_fragments_union_t* mmtp_payload) {
+	//sub_flow_vector is a global
+	dump_mpu(mmtp_payload);
+
+	__DEBUG("::dumpMfu ******* file dump file: %d.%d.%d.%d:%d-p:%d.s:%d.ft:%d",
+			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
+			dst_port,
+			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
+			mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number,
+
+			mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragment_type);
+
+	char *myFilePathName = calloc(64, sizeof(char*));
+	snprintf(myFilePathName, 64, "mpu/%d.%d.%d.%d,%d-p.%d.s,%d.ft,%d",
+			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
+			dst_port,
+			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
+			mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number,
+
+			mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragment_type);
+
+
+	__DEBUG("::dumpMfu ******* file dump file: %s", myFilePathName);
+
+	FILE *f = fopen(myFilePathName, "a");
+	if(!f) {
+		__INFO("::dumpMpu ******* UNABLE TO OPEN FILE %s", myFilePathName);
+			return;
+	}
+
+
+	for(int i=0; i <  mmtp_payload->mmtp_mpu_type_packet_header.mpu_data_unit_payload->i_buffer; i++) {
+		fputc(mmtp_payload->mmtp_mpu_type_packet_header.mpu_data_unit_payload->p_buffer[i], f);
+	}
+	fclose(f);
+}
+
+//assumes in-order delivery
+void mpu_dump_reconstitued(uint32_t dst_ip, uint16_t dst_port, mmtp_payload_fragments_union_t* mmtp_payload) {
+	//sub_flow_vector is a global
+	dump_mpu(mmtp_payload);
+
+	__INFO("::dump_mpu_reconstitued ******* file dump file: %d.%d.%d.%d:%d-p:%d.s:%d.ft:%d",
+			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
+			dst_port,
+			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
+			mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number,
+
+			mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragment_type);
+
+	char *myFilePathName = calloc(64, sizeof(char*));
+	snprintf(myFilePathName, 64, "mpu/%d.%d.%d.%d,%d-p.%d.s,%d.ft",
+			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
+			dst_port,
+			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
+			mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number);
+
+
+	__DEBUG("::dumpMfu ******* file dump file: %s", myFilePathName);
+
+	FILE *f = fopen(myFilePathName, "a");
+	if(!f) {
+		__ERROR("::dumpMpu ******* UNABLE TO OPEN FILE %s", myFilePathName);
+			return;
+	}
+
+
+	for(int i=0; i <  mmtp_payload->mmtp_mpu_type_packet_header.mpu_data_unit_payload->i_buffer; i++) {
+		fputc(mmtp_payload->mmtp_mpu_type_packet_header.mpu_data_unit_payload->p_buffer[i], f);
+	}
+	fclose(f);
+}
+
 
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
@@ -167,8 +268,6 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	//4294967295
 	//1234567890
-#ifdef __ENABLE_TRACE
-
 	__DEBUGF("Src. Addr  : %d.%d.%d.%d\t(%-10u)\t", ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr);
 	__DEBUGN("Src. Port  : %-5hu ", (udp_header[0] << 8) + udp_header[1]);
 	__DEBUGF("Dst. Addr  : %d.%d.%d.%d\t(%-10u)\t", ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr);
@@ -176,14 +275,13 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	__TRACE("Length\t\t\t\t\t%d", (udp_header[4] << 8) + udp_header[5]);
 	__TRACE("Checksum\t\t\t\t0x%02x 0x%02x", udp_header[6], udp_header[7]);
-#endif
 
 	udp_packet->data_length = pkthdr->len - (udp_header_start + 8);
 	if(udp_packet->data_length <=0 || udp_packet->data_length > 1514) {
 		__ERROR("invalid data length of udp packet: %d", udp_packet->data_length);
 		return;
 	}
-	__DEBUGN("Data length: %d", udp_packet->data_length);
+	__DEBUG("Data length: %d", udp_packet->data_length);
 	udp_packet->data = malloc(udp_packet->data_length * sizeof(udp_packet->data));
 	memcpy(udp_packet->data, &packet[udp_header_start + 8], udp_packet->data_length);
 
@@ -195,6 +293,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	#endif
 
 
+	//dispatch for LLS extraction and dump
+
+
 	#ifdef _SHOW_PACKET_FLOW
 		__INFO("--- Packet size : %-10d | Counter: %-8d", udp_packet->data_length, PACKET_COUNTER++);
 		__INFO("    Src. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr);
@@ -202,9 +303,6 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		__INFO("    Dst. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr);
 		__INFO("    Dst. Port   : %-5hu \t", (uint16_t)((udp_header[2] << 8) + udp_header[3]));
 	#endif
-
-	//dispatch for LLS extraction and dump
-
 
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
 		//process as lls
@@ -215,7 +313,44 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		} else {
 			__ERROR("unable to parse LLS table");
 		}
+	} else 	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
+
+		__DEBUG("data len: %d", udp_packet->data_length)
+		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
+
+		if(!mmtp_payload) {
+			__ERROR("mmtp_packet_parse: raw packet ptr is null, parsing failed for flow: %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu",
+					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
+					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
+					ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr,
+					(uint16_t)((udp_header[2] << 8) + udp_header[3])
+					);
+			goto cleanup;
+		}
+
+		//dump header, then dump applicable packet type
+		mmtp_packet_header_dump(mmtp_payload);
+
+		if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
+			if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
+				//timed
+			//	mpu_dump_flow(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
+				mpu_dump_reconstitued(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
+
+			} else {
+				//non-timed
+			}
+		} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
+
+			signaling_message_dump(mmtp_payload);
+
+		} else {
+			_MMTP_WARN("mmtp_packet_parse: unknown payload type of 0x%x", mmtp_payload->mmtp_packet_header.mmtp_payload_type);
+			goto cleanup;
+		}
 	}
+
+cleanup:
 
 	if(udp_packet->data) {
 		free(udp_packet->data);
@@ -228,29 +363,59 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	}
 }
 
+
 #define MAX_PCAP_LEN 1514
+/**
+ *
+ * atsc3_mmt_listener_test interface (dst_ip) (dst_port)
+ *
+ * arguments:
+ */
 int main(int argc,char **argv) {
 
+	_MPU_DEBUG_ENABLED = 0;
+	_MMTP_DEBUG_ENABLED = 0;
+	_LLS_DEBUG_ENABLED = 0;
+
     char *dev;
+
+    char *dst_ip = NULL;
+    char *dst_port = NULL;
+
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t* descr;
     struct bpf_program fp;
     bpf_u_int32 maskp;
     bpf_u_int32 netp;
 
+    //listen to all flows
     if(argc == 2) {
     	dev = argv[1];
+	    __DEBUG("listening on dev: %s", dev);
+    } else if(argc==4) {
+    	//listen
+        __DEBUG("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
+        char delim[] = ".";
+        char* ptr = NULL;
+
+      //  char *ptr = strtok(argv[], delim);
+
+        //uint8_t =
 
     } else {
-    	println("%s - a udp mulitcast listener test harness for atsc3 LLS messages, defaults to: 224.0.23.60:4937:", argv[0]);
-		println("---");
-    	println("args: dev");
+    	println("%s - a udp mulitcast listener test harness for atsc3 mmt messages", argv[0]);
+    	println("---");
+    	println("args: dev (dst_ip) (dst_port)");
     	println(" dev: device to listen for udp multicast, default listen to 0.0.0.0:0");
-
-		exit(1);
+    	println(" (dst_ip): optional, filter to specific ip address");
+    	println(" (dst_port): optional, filter to specific port");
+    	println("");
+    	exit(1);
     }
-    __DEBUG("dev is: %s", dev);
+    mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
+    mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
+    mkdir("mpu", 0777);
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);
     descr = pcap_open_live(dev, MAX_PCAP_LEN, 1, 0, errbuf);

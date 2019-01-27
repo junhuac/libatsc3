@@ -11,10 +11,11 @@
 
 #define _MPU_PRINTLN(...) printf(__VA_ARGS__);printf("\n")
 #define _MPU_ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
-#define _MPU_WARN(...)    printf("%s:%d:WARN :",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
-#define _MPU_INFO(...)    printf("%s:%d:INFO :",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
-#define _MPU_DEBUG(...)   printf("%s:%d:DEBUG:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
-#define _MPU_TRACE(...)   printf("%s:%d:TRACE:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
+#define _MPU_WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
+#define _MPU_INFO(...)    printf("%s:%d:INFO:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__);
+
+#define _MPU_DEBUG(...)   if(_MPU_DEBUG_ENABLED) { printf("%s:%d:DEBUG:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__); }
+#define _MPU_TRACE(...)   if(_MPU_TRACE_ENABLED) { printf("%s:%d:TRACE:",__FILE__,__LINE__);_MPU_PRINTLN(__VA_ARGS__); }
 
 //packet type=v0/v1 have an upper bound of ~1432
 #define UPPER_BOUND_MPU_FRAGMENT_SIZE 1432

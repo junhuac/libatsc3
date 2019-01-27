@@ -19,11 +19,11 @@
 #define _LLS_PRINTF(...)  printf(__VA_ARGS__);
 
 #define _LLS_ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);
-#define _LLS_WARN(...)    printf("%s:%d:WARN :",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);
-#define _LLS_INFO(...)    printf("%s:%d:INFO :",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);
+#define _LLS_WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);
+#define _LLS_INFO(...)    printf("%s:%d:INFO:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);
 
-#define _LLS_DEBUG(...)   printf("%s:%d:DEBUG:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);
-#define _LLS_DEBUGF(...)  printf("%s:%d:DEBUG:",__FILE__,__LINE__);_LLS_PRINTF(__VA_ARGS__);
+#define _LLS_DEBUG(...)   if(_LLS_DEBUG_ENABLED) { printf("%s:%d:DEBUG:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__); }
+#define _LLS_DEBUGF(...)  if(_LLS_DEBUG_ENABLED) { printf("%s:%d:DEBUG:",__FILE__,__LINE__);_LLS_PRINTF(__VA_ARGS__); }
 #define _LLS_DEBUGA(...)  _LLS_PRINTF(__VA_ARGS__);
 #define _LLS_DEBUGN(...)  _LLS_PRINTLN(__VA_ARGS__);
 #define _LLS_DEBUGNT(...)  _LLS_PRINTF(" ");_LLS_PRINTLN(__VA_ARGS__);

@@ -12,7 +12,8 @@
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
 #include "atsc3_mmt_mpu_parser.h"
-
+int _MPU_DEBUG_ENABLED = 1;
+int _MPU_TRACE_ENABLED = 0;
 
 uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_payload_fragments_union_t* mmtp_packet_header, uint8_t* udp_raw_buf, int udp_raw_buf_size) {
 
@@ -213,7 +214,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 				//	uint16_t seconds;
 				//	uint16_t microseconds;
 					compute_ntp32_to_seconds_microseconds(mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp, &mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_s, &mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_us);
-					_MPU_INFO("converting mmtp_timestamp: %u to seconds: %hu, microseconds: %hu", mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp, mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_s, mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_us);
+					_MPU_DEBUG("converting mmtp_timestamp: %u to seconds: %hu, microseconds: %hu", mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp, mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_s, mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_us);
 					//on first init, p_sys->first_pts will always be 0 from calloc
 //					uint64_t pts = compute_relative_ntp32_pts(p_sys->first_pts, mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_s, mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mmtp_timestamp_us);
 //					if(!p_sys->has_set_first_pts) {
@@ -265,7 +266,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 							buf = extract(buf, multilayer_layer_id_temporal_id, 2);
 						}
 
-						_MPU_INFO("mpu mode (0x02), timed MFU, mpu_fragmentation_indicator: %d, movie_fragment_seq_num: %u, sample_num: %u, offset: %u, pri: %d, dep_counter: %d, multilayer: %d, mpu_sequence_number: %u",
+						_MPU_DEBUG("mpu mode (0x02), timed MFU, mpu_fragmentation_indicator: %d, movie_fragment_seq_num: %u, sample_num: %u, offset: %u, pri: %d, dep_counter: %d, multilayer: %d, mpu_sequence_number: %u",
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mpu_fragmentation_indicator,
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.movie_fragment_sequence_number,
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.sample_number,
@@ -275,7 +276,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 							is_multilayer,
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mpu_sequence_number);
 					} else {
-						_MPU_INFO("mpu mode (0x02), timed MFU, mpu_fragmentation_indicator: %d, movie_fragment_seq_num: %u, sample_num: %u, offset: %u, pri: %d, dep_counter: %d, mpu_sequence_number: %u",
+						_MPU_DEBUG("mpu mode (0x02), timed MFU, mpu_fragmentation_indicator: %d, movie_fragment_seq_num: %u, sample_num: %u, offset: %u, pri: %d, dep_counter: %d, mpu_sequence_number: %u",
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.mpu_fragmentation_indicator,
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.movie_fragment_sequence_number,
 							mmtp_packet_header->mpu_data_unit_payload_fragments_timed.sample_number,
@@ -317,7 +318,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 						raw_buf);
 
 				block_t *tmp_mpu_fragment = block_Alloc(to_read_packet_length);
-				_MPU_INFO("creating tmp_mpu_fragment, setting block_t->i_buffer to: %d", to_read_packet_length);
+				_MPU_TRACE("creating tmp_mpu_fragment, setting block_t->i_buffer to: %d", to_read_packet_length);
 
 				buf = extract(buf, tmp_mpu_fragment->p_buffer, to_read_packet_length);
 				tmp_mpu_fragment->i_buffer = to_read_packet_length;

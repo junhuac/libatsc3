@@ -5,7 +5,7 @@ clean:
 intermediate: xml.o  atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmt_mpu_parser.o atsc3_mmt_signaling_message.o atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o fixups_timespec_get.o
 libatsc3_core: libatsc3.o
 unit_tests: atsc3_lmt_test atsc3_lls_slt_parser_test atsc3_lls_test atsc3_lls_SystemTime_test atsc3_mmt_signaling_message_test
-listener_tests: atsc3_lls_listener_test atsc3_mmt_listener_test
+listener_tests: atsc3_lls_listener_test atsc3_mmt_listener_test atsc3_listener_test
 
 #intermediate object gen
 
@@ -65,3 +65,6 @@ atsc3_lls_listener_test: atsc3_lls_listener_test.c libatsc3.o
 atsc3_mmt_listener_test: atsc3_mmt_listener_test.c libatsc3.o
 	cc -g atsc3_mmt_listener_test.c libatsc3.o -lz -lpcap -o atsc3_mmt_listener_test
 	
+	
+atsc3_listener_test: atsc3_listener_test.c libatsc3.o
+	cc -g atsc3_listener_test.c libatsc3.o -lz -lpcap -o atsc3_listener_test

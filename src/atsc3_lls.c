@@ -7,6 +7,7 @@
 #include "atsc3_utils.h"
 #include "atsc3_lls.h"
 #include "xml.h"
+int _LLS_DEBUG_ENABLED = 1;
 
 static lls_table_t* __lls_create_base_table_raw(uint8_t* lls, int size) {
 

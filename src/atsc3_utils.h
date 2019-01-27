@@ -20,8 +20,8 @@
 #define _ATSC3_UTILS_PRINTF(...)  printf(__VA_ARGS__);
 
 #define _ATSC3_UTILS_ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);_ATSC3_UTILS_PRINTLN(__VA_ARGS__);
-#define _ATSC3_UTILS_WARN(...)    printf("%s:%d:WARN :",__FILE__,__LINE__);_ATSC3_UTILS_PRINTLN(__VA_ARGS__);
-#define _ATSC3_UTILS_INFO(...)    printf("%s:%d:INFO :",__FILE__,__LINE__);_ATSC3_UTILS_PRINTLN(__VA_ARGS__);
+#define _ATSC3_UTILS_WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);_ATSC3_UTILS_PRINTLN(__VA_ARGS__);
+#define _ATSC3_UTILS_INFO(...)    printf("%s:%d:INFO:",__FILE__,__LINE__);_ATSC3_UTILS_PRINTLN(__VA_ARGS__);
 #define _ATSC3_UTILS_DEBUG(...)   printf("%s:%d:DEBUG:",__FILE__,__LINE__);_ATSC3_UTILS_PRINTLN(__VA_ARGS__);
 
 #ifdef __ENABLE_ATSC3_UTILS_TRACE

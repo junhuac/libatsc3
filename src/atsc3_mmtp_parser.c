@@ -15,6 +15,7 @@
 
 #include <assert.h>
 #include <limits.h>
+int _MMTP_DEBUG_ENABLED = 1;
 
 
 mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, uint8_t* udp_raw_buf, int udp_raw_buf_size) {

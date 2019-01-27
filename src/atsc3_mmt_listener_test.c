@@ -54,8 +54,8 @@ int PACKET_COUNTER=0;
 #define __PRINTF(...)  printf(__VA_ARGS__);
 
 #define __ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
-#define __WARN(...)    printf("%s:%d:WARN :",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
-#define __INFO(...)    printf("%s:%d:INFO :",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
+#define __WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
+#define __INFO(...)    printf("%s:%d:INFO:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
 
 #ifdef _ENABLE_DEBUG
 #define __DEBUG(...)   printf("%s:%d:DEBUG:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
