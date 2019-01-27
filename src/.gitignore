@@ -1,3 +1,8 @@
 /atsc3_mmt_listener_test
-/xml.o
-/atsc3_utils.o
+/*.dSYM/*
+/*.o
+/atsc3_mmtp_types
+/atsc3_mmt_signaling_message_test
+/atsc3_lls_slt_parser_test
+/atsc3_lls_SystemTime_test
+/atsc3_lls_test
