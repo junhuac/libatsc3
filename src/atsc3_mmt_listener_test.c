@@ -118,7 +118,7 @@ void dump_mpu_flow(uint32_t dst_ip, uint16_t dst_port, mmtp_payload_fragments_un
 			mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragment_type);
 
 	char *myFilePathName = calloc(64, sizeof(char*));
-	snprintf(myFilePathName, 64, "%d.%d.%d.%d:%d-p:%d.s:%d.ft:%d",
+	snprintf(myFilePathName, 64, "mpu/%d.%d.%d.%d,%d-p.%d.s,%d.ft,%d",
 			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
 			dst_port,
 			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
@@ -141,6 +141,42 @@ void dump_mpu_flow(uint32_t dst_ip, uint16_t dst_port, mmtp_payload_fragments_un
 	}
 	fclose(f);
 }
+
+//assumes in-order delivery
+void dump_mpu_reconstitued(uint32_t dst_ip, uint16_t dst_port, mmtp_payload_fragments_union_t* mmtp_payload) {
+	//sub_flow_vector is a global
+
+	__INFO("::dump_mpu_reconstitued ******* file dump file: %d.%d.%d.%d:%d-p:%d.s:%d.ft:%d",
+			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
+			dst_port,
+			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
+			mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number,
+
+			mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragment_type);
+
+	char *myFilePathName = calloc(64, sizeof(char*));
+	snprintf(myFilePathName, 64, "mpu/%d.%d.%d.%d,%d-p.%d.s,%d.ft",
+			(dst_ip>>24)&0xFF,(dst_ip>>16)&0xFF,(dst_ip>>8)&0xFF,(dst_ip)&0xFF,
+			dst_port,
+			mmtp_payload->mmtp_mpu_type_packet_header.mmtp_packet_id,
+			mmtp_payload->mpu_data_unit_payload_fragments_timed.mpu_sequence_number);
+
+
+	__INFO("::dumpMfu ******* file dump file: %s", myFilePathName);
+
+	FILE *f = fopen(myFilePathName, "a");
+	if(!f) {
+		__INFO("::dumpMpu ******* UNABLE TO OPEN FILE %s", myFilePathName);
+			return;
+	}
+
+
+	for(int i=0; i <  mmtp_payload->mmtp_mpu_type_packet_header.mpu_data_unit_payload->i_buffer; i++) {
+		fputc(mmtp_payload->mmtp_mpu_type_packet_header.mpu_data_unit_payload->p_buffer[i], f);
+	}
+	fclose(f);
+}
+
 
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
@@ -246,7 +282,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
 
-		__INFO(("data len: %d"+udp_packet->data_length))
+		__INFO("data len: %d", udp_packet->data_length)
 		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
 
 		if(!mmtp_payload) {
@@ -265,7 +301,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
 			if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
 				//timed
-				dump_mpu_flow(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
+			//	dump_mpu_flow(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
+				dump_mpu_reconstitued(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
+
 			} else {
 				//non-timed
 			}

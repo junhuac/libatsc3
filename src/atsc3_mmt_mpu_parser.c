@@ -327,9 +327,7 @@ uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_pa
 
 				//send off only the CLEAN mdat payload from our MFU
 				remainingPacketLen = udp_raw_buf_size - (buf - raw_buf);
-				_MPU_TRACE( "after reading fragment packet: remainingPacketLen: %d",
-										__LINE__,
-										remainingPacketLen);
+				_MPU_TRACE( "after reading fragment packet: remainingPacketLen: %d",	remainingPacketLen);
 
 			}
 
