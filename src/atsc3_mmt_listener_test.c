@@ -43,9 +43,10 @@ int PACKET_COUNTER=0;
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <string.h>
-
+#include <sys/stat.h>
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
+
 
 #define println(...) printf(__VA_ARGS__);printf("\n")
 
@@ -378,6 +379,7 @@ int main(int argc,char **argv) {
     mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
     mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
+    mkdir("mpu", 0777);
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);
     descr = pcap_open_live(dev, MAX_PCAP_LEN, 1, 0, errbuf);
