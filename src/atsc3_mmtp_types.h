@@ -21,6 +21,7 @@
 
 #define _MMTP_PRINTLN(...) printf(__VA_ARGS__);printf("\n")
 #define _MMTP_ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);_MMTP_PRINTLN(__VA_ARGS__);
+#define _MMTP_WARN(...)    printf("%s:%d:WARN :",__FILE__,__LINE__);_MMTP_PRINTLN(__VA_ARGS__);
 #define _MMTP_INFO(...)    printf("%s:%d:INFO :",__FILE__,__LINE__);_MMTP_PRINTLN(__VA_ARGS__);
 
 //logging hack to quiet output....

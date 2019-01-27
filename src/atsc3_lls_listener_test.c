@@ -27,6 +27,7 @@ atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst.
  */
 
 //#define _ENABLE_TRACE 1
+#define _SHOW_PACKET_FLOW 1
 
 
 #define LLS_DST_ADDR 3758102332
@@ -45,6 +46,7 @@ atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst.
 
 #include "atsc3_lls.h"
 
+#define println(...) printf(__VA_ARGS__);printf("\n")
 
 #define __PRINTLN(...) printf(__VA_ARGS__);printf("\n")
 #define __PRINTF(...)  printf(__VA_ARGS__);
@@ -96,6 +98,8 @@ typedef struct udp_packet {
 	u_char* 		data;
 
 } udp_packet_t;
+
+int PACKET_COUNTER = 0;
 
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
@@ -188,7 +192,16 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	#endif
 
 
+	#ifdef _SHOW_PACKET_FLOW
+		__INFO("--- Packet size : %-10d | Counter: %-8d", udp_packet->data_length, PACKET_COUNTER++);
+		__INFO("    Src. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr);
+		__INFO("    Src. Port   : %-5hu ", (uint16_t)((udp_header[0] << 8) + udp_header[1]));
+		__INFO("    Dst. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr);
+		__INFO("    Dst. Port   : %-5hu \t", (uint16_t)((udp_header[2] << 8) + udp_header[3]));
+	#endif
+
 	//dispatch for LLS extraction and dump
+
 
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
 		//process as lls
@@ -222,13 +235,16 @@ int main(int argc,char **argv) {
     bpf_u_int32 maskp;
     bpf_u_int32 netp;
 
-    if(argc < 2) {
-		dev = pcap_lookupdev(errbuf);
-		if(dev == NULL) {
-			fprintf(stderr,"%s",errbuf); exit(1);
-		}
-    } else {
+    if(argc == 2) {
     	dev = argv[1];
+
+    } else {
+    	println("%s - a udp mulitcast listener test harness for atsc3 LLS messages, defaults to: 224.0.23.60:4937:", argv[0]);
+		println("---");
+    	println("args: dev");
+    	println(" dev: device to listen for udp multicast, default listen to 0.0.0.0:0");
+
+		exit(1);
     }
     __DEBUG("dev is: %s", dev);
 

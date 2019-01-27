@@ -297,7 +297,7 @@ void signaling_message_dump(mmtp_payload_fragments_union_t* mmtp_payload_fragmen
 	_MMSM_INFO(" Extension        : %p", 			mmtp_payload_fragments->mmtp_signalling_message_fragments.extension);
 	_MMSM_INFO(" Payload          : %p", 			mmtp_payload_fragments->mmtp_signalling_message_fragments.payload);
 	_MMSM_INFO("------------------");
-
+	_MMSM_INFO("");
 
 	//_MMSM_INFO("--------------------------------------");
 

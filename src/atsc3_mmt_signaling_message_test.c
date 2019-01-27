@@ -18,32 +18,15 @@
 
 //system_time_message with packet_id=1
 static char* __get_test_mmt_signaling_message_mpu_timestamp_descriptor()	{ return "62020023afb90000002b4f2f00351058a40000000012ce003f12ce003b04010000000000000000101111111111111111111111111111111168657631fd00ff00015f9001000023000f00010c000016cedfc2afb8d6459fff"; }
-
+void __create_binary_payload(char *test_payload_base64, uint8_t **binary_payload, int * binary_payload_size);
 int test_mmt_signaling_message_mpu_timestamp_descriptor_table(char* base64_payload);
 
 int main() {
-
 	test_mmt_signaling_message_mpu_timestamp_descriptor_table(__get_test_mmt_signaling_message_mpu_timestamp_descriptor());
-
 	return 0;
 }
 
 
-
-void __create_binary_payload(char *test_payload_base64, uint8_t **binary_payload, int * binary_payload_size) {
-	int test_payload_base64_length = strlen(test_payload_base64);
-	int test_payload_binary_size = test_payload_base64_length/2;
-
-	uint8_t *test_payload_binary = calloc(test_payload_binary_size, sizeof(uint8_t));
-
-	for (size_t count = 0; count < test_payload_binary_size; count++) {
-	        sscanf(test_payload_base64, "%2hhx", &test_payload_binary[count]);
-	        test_payload_base64 += 2;
-	}
-
-	*binary_payload = test_payload_binary;
-	*binary_payload_size = test_payload_binary_size;
-}
 
 
 int test_mmt_signaling_message_mpu_timestamp_descriptor_table(char* base64_payload) {
@@ -68,7 +51,6 @@ int test_mmt_signaling_message_mpu_timestamp_descriptor_table(char* base64_paylo
 	new_size = binary_payload_size - (raw_packet_ptr - binary_payload);
 	raw_packet_ptr = signaling_message_parse_payload_table(mmtp_payload_fragments, raw_packet_ptr, new_size);
 
-
 	signaling_message_dump(mmtp_payload_fragments);
 
 
@@ -83,6 +65,21 @@ int test_mmt_signaling_message_mpu_timestamp_descriptor_table(char* base64_paylo
 	return 0;
 }
 
+
+void __create_binary_payload(char *test_payload_base64, uint8_t **binary_payload, int * binary_payload_size) {
+	int test_payload_base64_length = strlen(test_payload_base64);
+	int test_payload_binary_size = test_payload_base64_length/2;
+
+	uint8_t *test_payload_binary = calloc(test_payload_binary_size, sizeof(uint8_t));
+
+	for (size_t count = 0; count < test_payload_binary_size; count++) {
+	        sscanf(test_payload_base64, "%2hhx", &test_payload_binary[count]);
+	        test_payload_base64 += 2;
+	}
+
+	*binary_payload = test_payload_binary;
+	*binary_payload_size = test_payload_binary_size;
+}
 
 
 

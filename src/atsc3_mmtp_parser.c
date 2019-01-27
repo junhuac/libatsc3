@@ -3,21 +3,69 @@
  *
  *  Created on: Jan 3, 2019
  *      Author: jjustman
+ *
+ *
+ * parses the header of the MMTP packet, and invokes specific methods for MPU and signaling messages
  */
 
 #include "atsc3_mmtp_types.h"
+#include "atsc3_mmtp_parser.h"
+#include "atsc3_mmt_signaling_message.h"
 
 #include <assert.h>
 #include <limits.h>
 
 
+mmtp_payload_fragments_union_t* mmtp_packet_parse(uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size) {
+
+	uint8_t* raw_packet_ptr = NULL;
+	int i_status = 0;
+	mmtp_payload_fragments_union_t* mmtp_payload_fragments = calloc(1, sizeof(mmtp_payload_fragments_union_t));
+
+	raw_packet_ptr = mmtp_packet_header_parse_from_raw_packet(mmtp_payload_fragments, udp_raw_buf, udp_raw_buf_size);
+
+	if(!raw_packet_ptr) {
+		_MMTP_ERROR("mmtp_packet_parse: unable to parse MMTP header");
+		goto failed;
+	}
+
+	if(mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type == 0x0) {
+		if(mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
+			//timed
+		} else {
+			//non-timed
+		}
+	} else if(mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type == 0x2) {
+		uint8_t new_size = udp_raw_buf_size - (raw_packet_ptr - udp_raw_buf);
+		raw_packet_ptr = signaling_message_parse_payload_header(mmtp_payload_fragments, raw_packet_ptr, new_size);
+
+		new_size = udp_raw_buf_size - (raw_packet_ptr - udp_raw_buf);
+		raw_packet_ptr = signaling_message_parse_payload_table(mmtp_payload_fragments, raw_packet_ptr, new_size);
+
+	} else {
+		_MMTP_WARN("mmtp_packet_parse: unknown payload type of 0x%x", mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type);
+		goto failed;
+	}
+
+
+	return mmtp_payload_fragments;
+
+failed:
+	if(mmtp_payload_fragments) {
+			free(mmtp_payload_fragments);
+			mmtp_payload_fragments = NULL;
+		}
+	return NULL;
+
+}
+
+
 void mmtp_sub_flow_vector_init(mmtp_sub_flow_vector_t *mmtp_sub_flow_vector) {
-
 	__PRINTF_DEBUG("%d:mmtp_sub_flow_vector_init: %p\n", __LINE__, mmtp_sub_flow_vector);
-
 	atsc3_vector_init(mmtp_sub_flow_vector);
 	__PRINTF_DEBUG("%d:mmtp_sub_flow_vector_init: %p\n", __LINE__, mmtp_sub_flow_vector);
 }
+
 /**
 
 static struct vlc_player_program *
@@ -69,7 +117,7 @@ mpu_data_unit_payload_fragments_t* mpu_data_unit_payload_fragments_get_or_set_mp
 
 
 
-void allocate_mmtp_sub_flow_mpu_fragments(mmtp_sub_flow_t* entry) {
+void mmtp_sub_flow_mpu_fragments_allocate(mmtp_sub_flow_t* entry) {
 	entry->mpu_fragments = calloc(1, sizeof(mpu_fragments_t));
 	entry->mpu_fragments->mmtp_sub_flow = entry;
 
@@ -89,7 +137,7 @@ mpu_fragments_t* mpu_fragments_get_or_set_packet_id(mmtp_sub_flow_t* mmtp_sub_fl
 		__PRINTF_DEBUG("*** %d:mpu_fragments_get_or_set_packet_id - adding vector: %p, all_fragments_vector is: %p\n",
 				__LINE__, entry, entry->all_mpu_fragments_vector);
 
-		allocate_mmtp_sub_flow_mpu_fragments(mmtp_sub_flow);
+		mmtp_sub_flow_mpu_fragments_allocate(mmtp_sub_flow);
 	}
 
 	return entry;
@@ -155,7 +203,7 @@ mmtp_sub_flow_t* mmtp_sub_flow_vector_get_or_set_packet_id(mmtp_sub_flow_vector_
 	if(!entry) {
 		entry = calloc(1, sizeof(mmtp_sub_flow_t));
 		entry->mmtp_packet_id = mmtp_packet_id;
-		allocate_mmtp_sub_flow_mpu_fragments(entry);
+		mmtp_sub_flow_mpu_fragments_allocate(entry);
 		atsc3_vector_init(&entry->mmtp_generic_object_fragments_vector);
 		atsc3_vector_init(&entry->mmtp_signalling_message_fragements_vector);
 		atsc3_vector_init(&entry->mmtp_repair_symbol_vector);
@@ -166,9 +214,6 @@ mmtp_sub_flow_t* mmtp_sub_flow_vector_get_or_set_packet_id(mmtp_sub_flow_vector_
 	return entry;
 }
 
-
-
-//TODO, build factory parser here
 
 mmtp_payload_fragments_union_t* mmtp_packet_header_allocate_from_raw_packet(block_t *raw_packet) {
 	mmtp_payload_fragments_union_t *entry = NULL;
@@ -254,7 +299,7 @@ uint8_t* mmtp_packet_header_parse_from_raw_packet(mmtp_payload_fragments_union_t
 
 	if(udp_raw_buf_size < 20) {
 		//bail, the min header is at least 20 bytes
-		_MMTP_ERROR("mmtp_packet_header_parse_from_raw_packet, udp_raw_buf size is: %d", udp_raw_buf_size);
+		_MMTP_ERROR("mmtp_packet_header_parse_from_raw_packet, udp_raw_buf size is: %d, need at least 20 bytes", udp_raw_buf_size);
 		return NULL;
 	}
 

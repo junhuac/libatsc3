@@ -1,1 +1,1 @@
-make -f makefile_atsc3 clean all
+make -f makefile clean all

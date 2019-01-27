@@ -27,7 +27,8 @@ atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst.
  */
 
 //#define _ENABLE_TRACE 1
-
+#define _SHOW_PACKET_FLOW 1
+int PACKET_COUNTER=0;
 
 #define LLS_DST_ADDR 3758102332
 #define LLS_DST_PORT 4937
@@ -43,8 +44,10 @@ atsc3_lls_listener_test.c:153:DEBUG:Dst. Address : 224.0.23.60 (3758102332)	Dst.
 #include <netinet/ip.h>
 #include <string.h>
 
-#include "atsc3_lls.h"
+#include "atsc3_mmtp_types.h"
+#include "atsc3_mmtp_parser.h"
 
+#define println(...) printf(__VA_ARGS__);printf("\n")
 
 #define __PRINTLN(...) printf(__VA_ARGS__);printf("\n")
 #define __PRINTF(...)  printf(__VA_ARGS__);
@@ -96,6 +99,9 @@ typedef struct udp_packet {
 	u_char* 		data;
 
 } udp_packet_t;
+
+uint32_t* dst_ip_addr_filter = NULL;
+uint16_t* dst_ip_port_filter = NULL;
 
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
@@ -190,16 +196,50 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	//dispatch for LLS extraction and dump
 
-	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
-		//process as lls
-		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
-		if(lls) {
-			lls_dump_instance_table(lls);
-			lls_table_free(lls);
+
+	#ifdef _SHOW_PACKET_FLOW
+		__INFO("--- Packet size : %-10d | Counter: %-8d", udp_packet->data_length, PACKET_COUNTER++);
+		__INFO("    Src. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr);
+		__INFO("    Src. Port   : %-5hu ", (uint16_t)((udp_header[0] << 8) + udp_header[1]));
+		__INFO("    Dst. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr);
+		__INFO("    Dst. Port   : %-5hu \t", (uint16_t)((udp_header[2] << 8) + udp_header[3]));
+	#endif
+
+	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
+
+
+		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(udp_packet->data, udp_packet->data_length);
+
+		if(!mmtp_payload) {
+			__ERROR("mmtp_packet_parse: raw packet ptr is null, parsing failed for flow: %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu",
+					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
+					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
+					ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr,
+					(uint16_t)((udp_header[2] << 8) + udp_header[3])
+					);
+			goto cleanup;
+		}
+
+		//dump header, then dump applicable packet type
+		mmtp_packet_header_dump(mmtp_payload);
+
+		if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
+			if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
+				//timed
+			} else {
+				//non-timed
+			}
+		} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
+
+			signaling_message_dump(mmtp_payload);
+
 		} else {
-			__ERROR("unable to parse LLS table");
+			_MMTP_WARN("mmtp_packet_parse: unknown payload type of 0x%x", mmtp_payload->mmtp_packet_header.mmtp_payload_type);
+			goto cleanup;
 		}
 	}
+
+cleanup:
 
 	if(udp_packet->data) {
 		free(udp_packet->data);
@@ -212,25 +252,51 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	}
 }
 
+
 #define MAX_PCAP_LEN 1514
+/**
+ *
+ * atsc3_mmt_listener_test interface (dst_ip) (dst_port)
+ *
+ * arguments:
+ */
 int main(int argc,char **argv) {
 
     char *dev;
+
+    char *dst_ip = NULL;
+    char *dst_port = NULL;
+
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t* descr;
     struct bpf_program fp;
     bpf_u_int32 maskp;
     bpf_u_int32 netp;
 
-    if(argc < 2) {
-		dev = pcap_lookupdev(errbuf);
-		if(dev == NULL) {
-			fprintf(stderr,"%s",errbuf); exit(1);
-		}
-    } else {
+    //listen to all flows
+    if(argc == 2) {
     	dev = argv[1];
+	    __DEBUG("listening on dev: %s", dev);
+    } else if(argc==4) {
+    	//listen
+        __DEBUG("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
+        char delim[] = ".";
+        char* ptr = NULL;
+
+      //  char *ptr = strtok(argv[], delim);
+
+        //uint8_t =
+
+    } else {
+    	println("%s - a udp mulitcast listener test harness for atsc3 mmt messages", argv[0]);
+    	println("---");
+    	println("args: dev (dst_ip) (dst_port)");
+    	println(" dev: device to listen for udp multicast, default listen to 0.0.0.0:0");
+    	println(" (dst_ip): optional, filter to specific ip address");
+    	println(" (dst_port): optional, filter to specific port");
+    	println("");
+    	exit(1);
     }
-    __DEBUG("dev is: %s", dev);
 
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);
