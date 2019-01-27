@@ -172,9 +172,39 @@ kvp_collection_t* kvp_collection_parse(uint8_t* input_string) {
 	return collection;
 }
 
+
+
+block_t* block_Alloc(int len) {
+	block_t* new_block = calloc(1, sizeof(block_t*));
+	new_block->p_buffer = calloc(len, sizeof(uint8_t*));
+	new_block->i_buffer = len;
+
+	return new_block;
+}
+
+block_t* block_Duplicate(block_t* a) {
+	block_t* b= block_Alloc(a->i_buffer);
+	memcpy(b, a, a->i_buffer);
+	b->i_buffer = a->i_buffer;
+
+	return b;
+}
+
+void block_Release(block_t* a) {
+	if(a) {
+		if(a->p_buffer) {
+			free(a->p_buffer);
+			a->p_buffer = NULL;
+		}
+		free(a);
+		a = NULL;
+	}
+}
+
 void freesafe(void* tofree) {
 	if(tofree) {
 		free(tofree);
 	}
 }
+
 

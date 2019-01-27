@@ -103,6 +103,9 @@ typedef struct udp_packet {
 uint32_t* dst_ip_addr_filter = NULL;
 uint16_t* dst_ip_port_filter = NULL;
 
+//make sure to invoke     mmtp_sub_flow_vector_init(&p_sys->mmtp_sub_flow_vector);
+mmtp_sub_flow_vector_t* mmtp_sub_flow_vector;
+
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
   int i = 0;
@@ -208,7 +211,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
 
 
-		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(udp_packet->data, udp_packet->data_length);
+		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
 
 		if(!mmtp_payload) {
 			__ERROR("mmtp_packet_parse: raw packet ptr is null, parsing failed for flow: %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu",
@@ -297,6 +300,8 @@ int main(int argc,char **argv) {
     	println("");
     	exit(1);
     }
+    mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
+    mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);

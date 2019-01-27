@@ -10,15 +10,18 @@
 
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
+#include "atsc3_mmt_mpu_parser.h"
 #include "atsc3_mmt_signaling_message.h"
 
 #include <assert.h>
 #include <limits.h>
 
 
-mmtp_payload_fragments_union_t* mmtp_packet_parse(uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size) {
+mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size) {
 
+	mmtp_sub_flow_t *mmtp_sub_flow = NULL;
 	uint8_t* raw_packet_ptr = NULL;
+
 	int i_status = 0;
 	mmtp_payload_fragments_union_t* mmtp_payload_fragments = calloc(1, sizeof(mmtp_payload_fragments_union_t));
 
@@ -29,7 +32,14 @@ mmtp_payload_fragments_union_t* mmtp_packet_parse(uint8_t* udp_raw_buf, uint8_t 
 		goto failed;
 	}
 
+	mmtp_sub_flow = mmtp_sub_flow_vector_get_or_set_packet_id(mmtp_sub_flow_vector, mmtp_payload_fragments->mmtp_packet_header.mmtp_packet_id);
+	mmtp_sub_flow_push_mmtp_packet(mmtp_sub_flow, mmtp_payload_fragments);
+
 	if(mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type == 0x0) {
+		uint8_t new_size = udp_raw_buf_size - (raw_packet_ptr - udp_raw_buf);
+
+		mmt_parse_payload(mmtp_sub_flow_vector, mmtp_payload_fragments, raw_packet_ptr, new_size);
+
 		if(mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
 			//timed
 		} else {
@@ -46,7 +56,6 @@ mmtp_payload_fragments_union_t* mmtp_packet_parse(uint8_t* udp_raw_buf, uint8_t 
 		_MMTP_WARN("mmtp_packet_parse: unknown payload type of 0x%x", mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type);
 		goto failed;
 	}
-
 
 	return mmtp_payload_fragments;
 
@@ -88,93 +97,6 @@ vlc_player_program_vector_FindById(vlc_player_program_vector *vec, int id,
 
 
 
-mpu_data_unit_payload_fragments_t* mpu_data_unit_payload_fragments_find_mpu_sequence_number(mpu_data_unit_payload_fragments_vector_t *vec, uint32_t mpu_sequence_number) {
-	for (size_t i = 0; i < vec->size; ++i) {
-		mpu_data_unit_payload_fragments_t *mpu_fragments = vec->data[i];
-
-		if (mpu_fragments->mpu_sequence_number == mpu_sequence_number) {
-			return vec->data[i];
-		}
-	}
-	return NULL;
-}
-
-
-mpu_data_unit_payload_fragments_t* mpu_data_unit_payload_fragments_get_or_set_mpu_sequence_number_from_packet(mpu_data_unit_payload_fragments_vector_t *vec, mmtp_payload_fragments_union_t *mpu_type_packet) {
-
-	mpu_data_unit_payload_fragments_t *entry = mpu_data_unit_payload_fragments_find_mpu_sequence_number(vec, mpu_type_packet->mmtp_mpu_type_packet_header.mpu_sequence_number);
-	if(!entry) {
-		entry = calloc(1, sizeof(mpu_data_unit_payload_fragments_t));
-
-		entry->mpu_sequence_number = mpu_type_packet->mmtp_mpu_type_packet_header.mpu_sequence_number;
-		atsc3_vector_init(&entry->timed_fragments_vector);
-		atsc3_vector_init(&entry->nontimed_fragments_vector);
-		atsc3_vector_push(vec, entry);
-	}
-
-	return entry;
-}
-
-
-
-void mmtp_sub_flow_mpu_fragments_allocate(mmtp_sub_flow_t* entry) {
-	entry->mpu_fragments = calloc(1, sizeof(mpu_fragments_t));
-	entry->mpu_fragments->mmtp_sub_flow = entry;
-
-	atsc3_vector_init(&entry->mpu_fragments->all_mpu_fragments_vector);
-	atsc3_vector_init(&entry->mpu_fragments->mpu_metadata_fragments_vector);
-	atsc3_vector_init(&entry->mpu_fragments->mpu_movie_fragment_metadata_vector);
-	atsc3_vector_init(&entry->mpu_fragments->media_fragment_unit_vector);
-}
-
-//push this to mpu_fragments_vector->all_fragments_vector first,
-// 	then re-assign once fragment_type and fragmentation info are parsed
-//mpu_sequence_number *SHOULD* only be resolved from the interior all_fragments_vector for tuple lookup
-mpu_fragments_t* mpu_fragments_get_or_set_packet_id(mmtp_sub_flow_t* mmtp_sub_flow, uint16_t mmtp_packet_id) {
-
-	mpu_fragments_t *entry = mmtp_sub_flow->mpu_fragments;
-	if(!entry) {
-		__PRINTF_DEBUG("*** %d:mpu_fragments_get_or_set_packet_id - adding vector: %p, all_fragments_vector is: %p\n",
-				__LINE__, entry, entry->all_mpu_fragments_vector);
-
-		mmtp_sub_flow_mpu_fragments_allocate(mmtp_sub_flow);
-	}
-
-	return entry;
-}
-
-void mpu_fragments_assign_to_payload_vector(mmtp_sub_flow_t* mmtp_sub_flow, mmtp_payload_fragments_union_t* mpu_type_packet) {
-	//use mmtp_sub_flow ref, find packet_id, map into mpu/mfu vector
-//	mmtp_sub_flow_t mmtp_sub_flow = mpu_type_packet->mpu_
-
-	mpu_fragments_t *mpu_fragments = mmtp_sub_flow->mpu_fragments;
-	__PRINTF_TRACE("%d:mpu_fragments_assign_to_payload_vector - mpu_fragments is:, all_mpu_frags_vector.size: %d %p\n", __LINE__, mpu_fragments, mpu_fragments->all_mpu_fragments_vector.size);
-
-	mpu_data_unit_payload_fragments_t *to_assign_payload_vector = NULL;
-	if(mpu_type_packet->mmtp_mpu_type_packet_header.mpu_fragment_type == 0x00) {
-		//push to mpu_metadata fragments vector
-		to_assign_payload_vector = mpu_data_unit_payload_fragments_get_or_set_mpu_sequence_number_from_packet(&mpu_fragments->mpu_metadata_fragments_vector, mpu_type_packet);
-	} else if(mpu_type_packet->mmtp_mpu_type_packet_header.mpu_fragment_type == 0x01) {
-		//push to mpu_movie_fragment
-		to_assign_payload_vector = mpu_data_unit_payload_fragments_get_or_set_mpu_sequence_number_from_packet(&mpu_fragments->mpu_movie_fragment_metadata_vector, mpu_type_packet);
-	} else if(mpu_type_packet->mmtp_mpu_type_packet_header.mpu_fragment_type == 0x02) {
-		//push to media_fragment
-		to_assign_payload_vector = mpu_data_unit_payload_fragments_get_or_set_mpu_sequence_number_from_packet(&mpu_fragments->media_fragment_unit_vector, mpu_type_packet);
-	}
-
-	if(to_assign_payload_vector) {
-		__PRINTF_TRACE("%d: to_assign_payload_vector, sequence_number: %d, size is: %d\n", __LINE__, mpu_type_packet->mmtp_mpu_type_packet_header.mpu_sequence_number, to_assign_payload_vector->timed_fragments_vector.size);
-		if(mpu_type_packet->mmtp_mpu_type_packet_header.mpu_timed_flag) {
-			__PRINTF_TRACE("%d:mpu_data_unit_payload_fragments_get_or_set_mpu_sequence_number_from_packet, sequence_number: %d, pushing to timed_fragments_vector: %p", __LINE__, to_assign_payload_vector->mpu_sequence_number, to_assign_payload_vector->timed_fragments_vector);
-			atsc3_vector_push(&to_assign_payload_vector->timed_fragments_vector, mpu_type_packet);
-		} else {
-			atsc3_vector_push(&to_assign_payload_vector->nontimed_fragments_vector, mpu_type_packet);
-		}
-
-	}
-}
-
-
 
 mmtp_sub_flow_t* mmtp_sub_flow_vector_find_packet_id(mmtp_sub_flow_vector_t *vec, uint16_t mmtp_packet_id) {
 	for (size_t i = 0; i < vec->size; ++i) {
@@ -187,14 +109,6 @@ mmtp_sub_flow_t* mmtp_sub_flow_vector_find_packet_id(mmtp_sub_flow_vector_t *vec
 	return NULL;
 }
 
-mpu_fragments_t* mpu_fragments_find_packet_id(mmtp_sub_flow_vector_t *vec, uint16_t mmtp_packet_id) {
-	mmtp_sub_flow_t *entry = mmtp_sub_flow_vector_find_packet_id(vec, mmtp_packet_id);
-	if(entry) {
-		return entry->mpu_fragments;
-	}
-
-	return NULL;
-}
 
 mmtp_sub_flow_t* mmtp_sub_flow_vector_get_or_set_packet_id(mmtp_sub_flow_vector_t *vec, uint16_t mmtp_packet_id) {
 

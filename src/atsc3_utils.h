@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "fixups.h"
 
@@ -49,15 +50,24 @@ typedef struct kvp_collection {
 } kvp_collection_t;
 
 kvp_collection_t* kvp_collection_parse(uint8_t* input_string);
-
 //return the cloned value from the collection for datamodel construction
 char* kvp_collection_get(kvp_collection_t *collection, char* key);
-
 //return the reference pointer to the value
 char* kvp_collection_get_reference_p(kvp_collection_t *collection, char* key);
-
 void kvp_collection_free(kvp_collection_t* collection);
+
+//or block_t as in VLC?
+typedef struct atsc3_block {
+	uint8_t* p_buffer;
+	uint32_t i_buffer;
+} block_t;
+
+block_t* block_Alloc(int len);
+block_t* block_Duplicate(block_t* a);
+void block_Release(block_t* a);
+
 void freesafe(void* tofree);
+
 
 
 #endif /* ATSC3_UTILS_H_ */

@@ -67,7 +67,6 @@
 
 
 typedef struct mmtp_sub_flow mmtp_sub_flow_t;
-typedef struct block block_t;
 
 #define _MMTP_PACKET_HEADER_FIELDS 						\
 	block_t*			raw_packet;						\
@@ -115,7 +114,7 @@ typedef struct {
 	uint8_t mpu_fragmentation_counter;		\
 	uint32_t mpu_sequence_number;			\
 	uint16_t data_unit_length;				\
-	block_t *mpu_data_unit_payload;			\
+	block_t* mpu_data_unit_payload;			\
 
 //DO NOT REFERENCE INTEREMDIATE STRUCTS DIRECTLY
 typedef struct {
