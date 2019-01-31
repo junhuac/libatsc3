@@ -38,8 +38,7 @@ int PACKET_COUNTER=0;
 #include <string.h>
 #include <sys/stat.h>
 #include "alc_rx.h"
-
-
+#include "alc_channel.h"
 
 #define println(...) printf(__VA_ARGS__);printf("\n")
 
@@ -81,7 +80,6 @@ void __trace_dump_ip_header_info(u_char* ip_header) {
 #define __TRACE(...)
 #endif
 
-
 typedef struct udp_packet {
 	uint32_t		src_ip_addr;
 	uint32_t		dst_ip_addr;
@@ -96,6 +94,8 @@ typedef struct udp_packet {
 
 uint32_t* dst_ip_addr_filter = NULL;
 uint16_t* dst_ip_port_filter = NULL;
+
+alc_session_t* alc_session;
 
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
@@ -202,12 +202,14 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
 
 		__INFO("data len: %d", udp_packet->data_length);
-		alc_arguments_t alc_arguments;
 
-		alc_session_t* session = open_alc_session(&alc_arguments);
+		if(alc_session != NULL) {
+		//	int retval = recv_packet(alc_session);
+			alc_channel_t ch;
+			ch.s = alc_session;
 
-		if(session != NULL) {
-			int retval = recv_packet(session);
+			int retval = analyze_packet((char*)udp_packet->data, udp_packet->data_length, &ch);
+
 		}
 //		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
 
@@ -304,7 +306,11 @@ int main(int argc,char **argv) {
 //    mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
 //    mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
-    mkdir("dash", 0777);
+
+    alc_arguments_t alc_arguments;
+    alc_session = open_alc_session(&alc_arguments);
+
+    mkdir("route", 0777);
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);
     descr = pcap_open_live(dev, MAX_PCAP_LEN, 1, 0, errbuf);

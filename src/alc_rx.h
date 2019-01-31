@@ -34,14 +34,48 @@
 #ifndef _ALC_RX_H_
 #define _ALC_RX_H_
 
+#define __ALC_RX_ENABLE_DEBUG 1
+#define __ALC_RX_ENABLE_TRACE 1
+
+#define println(...) printf(__VA_ARGS__);printf("\n")
+
+#define __ALC_RX_PRINTLN(...) printf(__VA_ARGS__);printf("\n")
+#define __ALC_RX_PRINTF(...)  printf(__VA_ARGS__);
+
+#define ALC_RX_ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);__ALC_RX_PRINTLN(__VA_ARGS__);
+#define ALC_RX_WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);__ALC_RX_PRINTLN(__VA_ARGS__);
+#define ALC_RX_INFO(...)    printf("%s:%d:INFO:",__FILE__,__LINE__);__ALC_RX_PRINTLN(__VA_ARGS__);
+
+#ifdef __ALC_RX_ENABLE_DEBUG
+#define ALC_RX_DEBUG(...)   printf("%s:%d:DEBUG:",__FILE__,__LINE__);__ALC_RX_PRINTLN(__VA_ARGS__);
+#define ALC_RX_DEBUGF(...)  printf("%s:%d:DEBUG:",__FILE__,__LINE__);__ALC_RX_PRINTF(__VA_ARGS__);
+#define ALC_RX_DEBUGA(...) 	__PRINTF(__VA_ARGS__);
+#define ALC_RX_DEBUGN(...)  __PRINTLN(__VA_ARGS__);
+#else
+#define ALC_RX_DEBUG(...)
+#define ALC_RX_DEBUGF(...)
+#define ALC_RX_DEBUGA(...)
+#define ALC_RX_DEBUGN(...)
+#endif
+
+#ifdef __ALC_RX_ENABLE_TRACE
+#define ALC_RX_TRACE(...)   printf("%s:%d:TRACE:",__FILE__,__LINE__);__ALC_RX_PRINTLN(__VA_ARGS__);
+#else
+#define ALC_RX_TRACE(...)
+#endif
+
+
 #include "defines.h"
 #include "transport.h"
 #include "alc_session.h"
-//#include "alc_channel.h"
+
+#include "alc_channel.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+int analyze_packet(char *data, int len, alc_channel_t *ch);
 
 /** 
  * This function checks if a received unit belongs to an object which already exists in the session or not. 

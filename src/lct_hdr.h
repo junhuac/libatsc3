@@ -56,34 +56,60 @@ extern "C" {
  *
  */
 
-//mac uses _LTOH, dont be fooled....
+//manually parse into struct for endianness
+/**
+ * https://tools.ietf.org/html/rfc5651
+ */
 typedef struct def_lct_hdr {
-#ifdef _BIT_FIELDS_LTOH
-  unsigned short flag_b:1;		/**< close session flag */
-  unsigned short flag_a:1;		/**< close object flag */
-  unsigned short reserved:2;	/**< reserved; must be zero */
-  unsigned short flag_h:1;		/**< half word flag */
-  unsigned short flag_o:2;		/**< transport object identifier flag */
-  unsigned short flag_s:1;		/**< transport session identifier flag */
-  unsigned short psi:2;			/**jdj-2019-01-07  -    Protocol-Specific Indication (PSI): 2 bits **/
-  unsigned short flag_c:2;		/**< congestion control flag */
-  unsigned short version:4;		/**< LCT version number */
-  unsigned char	hdr_len;		/**< total length of LCT header */
-  unsigned char	codepoint;		/**< identifier used by payload decoder */
-#else
+
   unsigned short version:4;		/**< LCT version number */
   unsigned short flag_c:2;		/**< congestion control flag */
   unsigned short psi:2;			/**jdj-2019-01-07  -    Protocol-Specific Indication (PSI): 2 bits **/
+
   unsigned short flag_s:1;		/**< transport session identifier flag */
   unsigned short flag_o:2;		/**< transport object identifier flag */
   unsigned short flag_h:1;		/**< half word flag */
-  unsigned short reserved:2;			/**< sender current time present flag */
-  unsigned short flag_a:1;		/**< close object flag */
-  unsigned short flag_b:1;		/**< close session flag */
-  unsigned char	hdr_len;		/**< total length of LCT header */
+  unsigned short reserved:2;	/** reserved as per rfc5651 */
+
+  unsigned short flag_a:1;		/**< close session flag */
+  unsigned short flag_b:1;		/**< close object flag */
+
+  unsigned char	hdr_len_raw;		/**< total length of LCT header,
+  	  Total length of the LCT header in units of 32-bit words.  The
+      length of the LCT header MUST be a multiple of 32 bits.  This
+      field can be used to directly access the portion of the packet
+      beyond the LCT header, i.e., to the first other header if it
+      exists, or to the packet payload if it exists and there is no
+      other header, or to the end of the packet if there are no other
+      headers or packet payload.
+   */
+  uint8_t hdr_len;
+
   unsigned char	codepoint;		/**< identifier used by payload decoder */
-#endif
-  unsigned int cci;				/**< congestion control header */
+
+  uint32_t cci[4];				/**< congestion control header
+    Congestion Control Information (CCI): 32, 64, 96, or 128 bits
+
+      Used to carry congestion control information.  For example, the
+      congestion control information could include layer numbers,
+      logical channel numbers, and sequence numbers.  This field is
+      opaque for the purpose of this specification.
+
+      This field MUST be 32 bits if C=0.
+
+      This field MUST be 64 bits if C=1.
+
+      This field MUST be 96 bits if C=2.
+      length = 32*(C+1) bits)
+  */
+
+  uint8_t	ts_id_bits;
+  uint16_t ts_id[3]; //(TSI, length = 32*S+16*H bits)
+
+  uint8_t	to_id_bits;
+  uint16_t to_id[7]; //(TOI, length = 32*O+16*H bits)
+
+
 } def_lct_hdr_t;
 
 /**

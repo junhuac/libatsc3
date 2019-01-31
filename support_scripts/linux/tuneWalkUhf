@@ -14,6 +14,8 @@ do
 	RUNTS=$(date +%s)
 	curl "http://127.0.0.1:8080/networktuner/tunefrequency?json=\{\"operating_mode\":\"ATSC3\",\"frequency_plan\":\"US_BROADCAST\",\"frequency_Hz\":"$i"000000\}"
 	sleep 10
-	curl --silent "http://127.0.0.1:8080/networktuner/querytuner" | json_reformat > $i-$RUNTS
+	# curl --silent "http://127.0.0.1:8080/networktuner/querytuner" | json_reformat > $i-$RUNTS
+	curl --silent "http://127.0.0.1:8080/networktuner/querytuner"
+
     done
 done

@@ -40,6 +40,7 @@
 extern "C" {
 #endif
 
+#define __readuint32(data, hdrlen) (data[hdrlen] & 0xFF) << 24 | (data[hdrlen+1] & 0xFF) << 16 | (data[hdrlen+2] & 0xFF) << 8 | (data[hdrlen+3] & 0xFF);
 #ifndef min
 	/** A macro that returns the minimum of a and b if not defined in Operation System. */
         #define min(a,b)        ((a) <= (b) ? (a) : (b))
