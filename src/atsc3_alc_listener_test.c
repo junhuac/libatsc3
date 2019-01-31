@@ -1,5 +1,5 @@
 /*
- * atsc3_alc_rx_test.c
+ * atsc3_alc_listener_test.c
  *
  *  Created on: Jan 29, 2019
  *      Author: jjustman
@@ -9,16 +9,18 @@
  * uses libpacp for udp mulicast packet listening
  *
  * opt flags:
+ *
   export LDFLAGS="-L/usr/local/opt/libpcap/lib"
   export CPPFLAGS="-I/usr/local/opt/libpcap/include"
 
-  to invoke test driver, run ala:
+ * to invoke test driver, run ala:
 
-  ./atsc3_alc_rx_test vnic1 | grep 224.0.23.60
+  ./atsc3_alc_listener_test vnic1
 
-  output should look like
+	ROUTE fragments (no re-assembly or fec support yet) will be available in route
 
 */
+
 //#define _ENABLE_TRACE 1
 #define _SHOW_PACKET_FLOW 1
 int PACKET_COUNTER=0;
@@ -309,12 +311,8 @@ int main(int argc,char **argv) {
         char delim[] = ".";
         char* ptr = NULL;
 
-      //  char *ptr = strtok(argv[], delim);
-
-        //uint8_t =
-
     } else {
-    	println("%s - a udp mulitcast listener test harness for atsc3 ALC DASH messages", argv[0]);
+    	println("%s - a udp mulitcast listener test harness for atsc3 ALC ROUTE flows", argv[0]);
     	println("---");
     	println("args: dev (dst_ip) (dst_port)");
     	println(" dev: device to listen for udp multicast, default listen to 0.0.0.0:0");
@@ -323,9 +321,6 @@ int main(int argc,char **argv) {
     	println("");
     	exit(1);
     }
-//    mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
-//    mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
-
 
     alc_arguments_t alc_arguments;
     alc_session = open_alc_session(&alc_arguments);

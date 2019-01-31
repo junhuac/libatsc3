@@ -121,13 +121,13 @@ alc_session_t* open_alc_session(alc_arguments_t *a) {
     /* Could not create new alc session */
     printf("Could not create new alc session: too many sessions!\n");
     unlock_session();
-    return -1;
+    return NULL;
   }
   
   if (!(s = (alc_session_t*)calloc(1, sizeof(alc_session_t)))) {
     printf("Could not alloc memory for alc session!\n");
     unlock_session();
-    return -1;
+    return NULL;
   }
 
   memset(s, 0, sizeof(alc_session_t));
@@ -144,7 +144,7 @@ alc_session_t* open_alc_session(alc_arguments_t *a) {
     
     if(retval < 0) {
       unlock_session();
-      return retval;
+      return NULL;
     }
   }
   

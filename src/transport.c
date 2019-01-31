@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef _MSC_VER
 #include <io.h>
@@ -505,29 +506,29 @@ void free_object(trans_obj_t *to, alc_session_t *s, int type) {
   trans_unit_t *tu;
   trans_unit_t *next_tu;
   unsigned int i;
-  
+
   for(i=0; i < to->bs->N; i++) {
-    
+
     tb = to->block_list+i;
-    
+
     next_tu = tb->unit_list;
-    
+
     while(next_tu != NULL) {
       tu = next_tu;
-      
+
       if(tu->data != NULL) {
 		free(tu->data);
 		tu->data = NULL;
       }
-      
+
       next_tu = tu->next;
       free(tu);
     }
   }
 #endif
-  
+
   free(to->bs);
-  
+
   if(to->next != NULL) {
     to->next->prev = to->prev;
   }
@@ -550,7 +551,7 @@ void free_object(trans_obj_t *to, alc_session_t *s, int type) {
       }
     }
   }
-  
+
   if(to->tmp_st_filename != NULL) {
     if(type == 1) {
       if(close(to->fd_st) == -1) {
@@ -560,12 +561,12 @@ void free_object(trans_obj_t *to, alc_session_t *s, int type) {
     remove(to->tmp_st_filename);
     free(to->tmp_st_filename);
     to->tmp_st_filename = NULL;
-  }        
-  
+  }
+
   if(to->block_list != NULL) {
     free(to->block_list);
   }
-  
+
   free(to);
 }
 

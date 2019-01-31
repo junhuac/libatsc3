@@ -34,8 +34,8 @@
 #ifndef _ALC_RX_H_
 #define _ALC_RX_H_
 
-#define __ALC_RX_ENABLE_DEBUG 1
-#define __ALC_RX_ENABLE_TRACE 1
+//#define __ALC_RX_ENABLE_DEBUG 1
+//#define __ALC_RX_ENABLE_TRACE 1
 
 #define println(...) printf(__VA_ARGS__);printf("\n")
 

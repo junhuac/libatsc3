@@ -9,3 +9,5 @@
 /atsc3_lls_listener_test
 /atsc3_lmt_test
 /mpu/*
+/atsc3_alc_listener_test
+/atsc3_listener_test
