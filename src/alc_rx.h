@@ -86,7 +86,7 @@ typedef struct alc_packet {
 	unsigned long long transfer_len;
 	uint32_t sbn;
 	uint32_t esi;
-	uint8_t  alc_len;
+	unsigned int  alc_len;
 	uint8_t* alc_payload;
 } alc_packet_t;
 
