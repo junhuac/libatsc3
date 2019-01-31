@@ -96,6 +96,8 @@ uint32_t* dst_ip_addr_filter = NULL;
 uint16_t* dst_ip_port_filter = NULL;
 
 alc_session_t* alc_session;
+static int __INT_LOOP_COUNT=0;
+
 
 void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
 
@@ -106,6 +108,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
   u_char udp_header[8];
   int udp_header_start = 34;
   udp_packet_t* udp_packet = NULL;
+  alc_packet_t* alc_packet = NULL;
 
 //dump full packet if needed
 #ifdef _ENABLE_TRACE
@@ -208,44 +211,61 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 			alc_channel_t ch;
 			ch.s = alc_session;
 
-			int retval = analyze_packet((char*)udp_packet->data, udp_packet->data_length, &ch);
+			int retval = alc_rx_analyze_packet((char*)udp_packet->data, udp_packet->data_length, &ch, &alc_packet);
 
+			if(retval) {
+				__ERROR("Error in alc_analyze_packet: %d", retval);
+				goto cleanup;
+			}
+
+			//write out our alc fragment to disk, no reordering here yet
+
+			/* TODO: check if instance_id is set --> EXT_FDT header exists in packet */
+
+			char *myFilePathName = calloc(128, sizeof(char));
+			int filename_pos = 0;
+			__INFO("have tsi: %s, toi: %s, sbn: %x, esi: %x len: %d",
+					alc_packet->tsi, alc_packet->toi,
+					alc_packet->esi, alc_packet->sbn, alc_packet->alc_len);
+
+			FILE *f = NULL;
+
+			//if no TSI, this is metadata and create a new object for each payload
+			if(!alc_packet->tsi) {
+				snprintf(myFilePathName,127, "route/%s-%s-%d", alc_packet->tsi, alc_packet->toi, __INT_LOOP_COUNT++);
+				f = fopen(myFilePathName, "w");
+
+			} else {
+				snprintf(myFilePathName,127, "route/%s-%s", alc_packet->tsi, alc_packet->toi);
+
+				if(alc_packet->esi>0) {
+					__INFO("alc_rx.c - dumping to file in append mode: %s, esi: %d", myFilePathName, alc_packet->esi);
+					f = fopen(myFilePathName, "a");
+				} else {
+					__INFO("alc_rx.c - dumping to file in write mode: %s, esi: %d", myFilePathName, alc_packet->esi);
+					//open as write
+					f = fopen(myFilePathName, "w");
+				}
+			}
+
+			if(!f) {
+				__WARN("alc_rx.c - UNABLE TO OPEN FILE %s", myFilePathName);
+				goto cleanup;
+			}
+
+			for(int i=0; i < alc_packet->alc_len; i++) {
+				fputc(alc_packet->alc_payload[i], f);
+			}
+			fclose(f);
+			__INFO("alc_rx.c - dumping to file complete: %s", myFilePathName);
+			free(myFilePathName);
 		}
-//		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
-
-//		if(!mmtp_payload) {
-//			__ERROR("mmtp_packet_parse: raw packet ptr is null, parsing failed for flow: %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu",
-//					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
-//					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
-//					ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr,
-//					(uint16_t)((udp_header[2] << 8) + udp_header[3])
-//					);
-//			goto cleanup;
-//		}
-
-//		//dump header, then dump applicable packet type
-//		mmtp_packet_header_dump(mmtp_payload);
-//
-//		if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
-//			if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
-//				//timed
-//			//	dump_mpu_flow(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
-//				dump_mpu_reconstitued(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
-//
-//			} else {
-//				//non-timed
-//			}
-//		} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
-//
-//			signaling_message_dump(mmtp_payload);
-//
-//		} else {
-//			_MMTP_WARN("mmtp_packet_parse: unknown payload type of 0x%x", mmtp_payload->mmtp_packet_header.mmtp_payload_type);
-//			goto cleanup;
-//		}
 	}
 
 cleanup:
+	if(alc_packet) {
+		alc_packet_free(alc_packet);
+	}
 
 	if(udp_packet->data) {
 		free(udp_packet->data);

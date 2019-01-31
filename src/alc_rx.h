@@ -70,12 +70,29 @@
 #include "alc_session.h"
 
 #include "alc_channel.h"
+#include "lct_hdr.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int analyze_packet(char *data, int len, alc_channel_t *ch);
+
+
+
+typedef struct alc_packet {
+	def_lct_hdr_t* def_lct_hdr;
+	char* tsi;
+	char* toi;
+	unsigned long long transfer_len;
+	uint32_t sbn;
+	uint32_t esi;
+	uint8_t  alc_len;
+	uint8_t* alc_payload;
+} alc_packet_t;
+
+void alc_packet_free(alc_packet_t* alc_packet);
+
+int alc_rx_analyze_packet(char *data, int len, alc_channel_t *ch, alc_packet_t** alc_packet_ptr);
 
 /** 
  * This function checks if a received unit belongs to an object which already exists in the session or not. 
@@ -198,6 +215,10 @@ char* fdt_recv(int s_id,
 	       int *retval,
 	       unsigned char *content_enc_algo,
 	       int *fdt_instance_id);
+
+
+
+
 
 #ifdef __cplusplus
 }; //extern "C"

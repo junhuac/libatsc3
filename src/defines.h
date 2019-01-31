@@ -120,11 +120,11 @@ extern "C" {
 #define MAX_TX_QUEUE_SIZE			1000	/**< Maximum transmission queue size in packets */
 
 #define WAITING_FDT		5	/**< FDT instance is in parsing state */
-#define OK				4	/**< Correct packet received */
+#define OK				0	/**< Correct packet received */
 #define EMPTY_PACKET	3	/**< Empty packet received */
 #define HDR_ERROR		2	/**< Error in FLUTE header */
 #define MEM_ERROR		1	/**< Error when reserving memory */
-#define DUP_PACKET		0	/**< Duplicate packet received*/
+#define DUP_PACKET		-1	/**< Duplicate packet received*/
 
 #define NO_TX_THREAD 0		/**< Mode when transmission thread is not used in the sender (with Null
 							congestion control and only one channel) */
