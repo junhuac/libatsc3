@@ -21,6 +21,35 @@
 
   TODO: A/331 - Section 8.1.2.1.3 - Constraints on MMTP
   	  PacketId
+
+
+
+  TODO: A/331 - Section 6.1  IP Address Assignment
+  	  Implement a more robust ip filtering functionality for flow selection
+
+  	  6.1 IP Address Assignment
+
+
+LLS shall be transported in IP packets with address 224.0.23.60 and
+destination port 4937/udp.1 All IP packets other than LLS IP packets
+shall carry a Destination IP address either
+
+	(a) allocated and reserved by a mechanism guaranteeing that the
+	 destination addresses in use are unique in a geographic region2,or
+
+	(b) in the range of 239.255.0.0 to 239.255.255.2553, where the
+	bits in the third octet shall correspond to a value of
+	SLT.Service@majorChannelNo registered to the broadcaster for use
+	in the Service Area4 of the broadcast transmission, with the
+	following caveats:
+
+	• If a broadcast entity operates transmissions carrying different Services
+	on multiple RF frequencies with all or a part of their service area in common,
+	each IP address/port combination shall be unique across all such broadcast emissions;
+
+	•In the case that multiple LLS streams (hence, multiple SLTs) are present in a
+	given broadcast emission, each IP address/port combination in use for non-LLS streams
+	shall be unique across all Services in the aggregate broadcast emission;
 */
 
 
@@ -200,6 +229,8 @@ typedef struct global_mmt_stats {
 	uint32_t alc_packets_recv;
 	uint32_t alc_packets_decoded;
 	uint32_t alc_decode_errors;
+
+	uint32_t filtered_ipv4_packet_count;
 
 
 } global_mmt_stats_t;
@@ -683,9 +714,18 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 
 	//drop mdNS
-	if(udp_packet->dst_ip_addr == 3758096635 && udp_packet->dst_port == 5353) goto cleanup;
+	if(udp_packet->dst_ip_addr == 3758096635 && udp_packet->dst_port == 5353) {
+		global_stats->filtered_ipv4_packet_count++;
+		goto cleanup;
+	}
 
+	//ATSC3/331 Section 6.1 - drop non mulitcast ip ranges - e.g not in  239.255.0.0 to 239.255.255.255
 
+	if(udp_packet->dst_ip_addr <= MIN_ATSC3_MULTICAST_BLOCK || udp_packet->dst_ip_addr >= MAX_ATSC3_MULTICAST_BLOCK) {
+		//out of range, so drop
+		global_stats->filtered_ipv4_packet_count++;
+		goto cleanup;
+	}
 
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
 		global_stats->lls_packet_counter_recv++;
@@ -696,9 +736,13 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 			global_stats->lls_parsed_success_counter++;
 			if(lls->lls_table_id == SLT) {
 				//if we have a lls_slt table, and the group is the same but its a new vewsion, reprocess
-				if(global_stats->lls_table_slt && global_stats->lls_table_slt->lls_group_id == lls->lls_group_id &&
-					global_stats->lls_table_slt->lls_table_version != lls->lls_table_version) {
+				if(!global_stats->lls_table_slt ||
+					(global_stats->lls_table_slt && global_stats->lls_table_slt->lls_group_id == lls->lls_group_id &&
+					global_stats->lls_table_slt->lls_table_version != lls->lls_table_version)) {
+
 					int retval = 0;
+					__INFO("Beginning processing of SLT from lls_table_slt_update");
+
 					retval = process_lls_table_slt_update(lls);
 
 					if(!retval) {

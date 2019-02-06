@@ -36,6 +36,11 @@
 #define _ATSC3_UTILS_TRACEN(...)
 #endif
 
+//ATSC3/331 Section 6.1 - drop non mulitcast ip ranges - e.g not in  239.255.0.0 to 239.255.255.255
+#define MIN_ATSC3_MULTICAST_BLOCK (239 << 24 | 255 << 16)
+#define MAX_ATSC3_MULTICAST_BLOCK (239 << 24 | 255 << 16 | 255 << 8 | 255)
+
+
 #define __toip(packet_mmt_stats) (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
 //%u.%u.%u.%u:%u
 
