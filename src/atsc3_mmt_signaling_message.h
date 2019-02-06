@@ -5,6 +5,54 @@
  *      Author: jjustman
  */
 
+
+/**
+ *
+ * Borrowed from A/331 Section 7.2.3
+ * ATSC A/331:2017 Signaling, Delivery, Synchronization, and Error Protection 6 December 2017
+ *
+ * MMTP-Specific Signaling Message
+ *
+ * When MMTP sessions are used to carry an ATSC 3.0 streaming service, MMTP-specific signaling messages specified in Clause 10
+ * of ISO/IEC 23008-1 [37] are delivered in binary format by MMTP packets according to Signaling Message Mode specified in
+ * subclause 9.3.4 of ISO/IEC 23008-1 [37].
+ *
+ * The value of the packet_id field of MMTP packets carrying Service Layer Signaling shall be set to 0x0000 except for
+ * MMTP packets carrying MMTP-specific signaling messages specific to an Asset, which shall
+ * be set to 0x0000 or the same packet_id value as the MMTP packets carrying the Asset.
+ *
+ * Identifiers referencing the appropriate Package for each ATSC 3.0 Service are signaled by the USBD fragment as
+ * described in Table 7.4.
+ *
+ * MMT Package Table (MPT) messages with matching MMT_package_id shall be delivered on the MMTP session signaled in the SLT.
+ *
+ * Each MMTP session carries MMTP-specific signaling messages specific to its session or each asset delivered by the MMTP session.
+ *
+ * The following MMTP messages shall be delivered by the MMTP session signaled in the SLT:
+ *
+ *    MMT Package Table (MPT) message: This message carries an MP (MMT Package) table which contains the list of all Assets and
+ * their location information as specified in subclause 10.3.4 of ISO/IEC 23008-1) [37].
+ *    MMT ATSC3 (MA3) message mmt_atsc3_message(): This message carries system metadata specific for ATSC 3.0 services including
+ *
+ * Service Layer Signaling as specified in Section 7.2.3.1.
+ *
+ * The following MMTP messages shall be delivered by the MMTP session signaled in the SLT, if required:
+ *
+ *   Media Presentation Information (MPI) message: This message carries an MPI table which contains the whole document or a
+ * subset of a document of presentation information. An MP table associated with the MPI table also can be delivered by this
+ * message (see subclause 10.3.3 of ISO/IEC 23008-1) [37];
+ *
+ * The following MMTP messages shall be delivered by the MMTP session carrying an associated Asset and the value of the
+ * packet_id field of MMTP packets carrying them shall be set to the same as the MMTP packets carrying the Asset::
+ *
+ *   Hypothetical Receiver Buffer Model message: This message carries information required by the receiver to manage its
+ * buffer (see subclause 10.4.2 of ISO/IEC 23008-1 [37]);
+ *
+ *   Hypothetical Receiver Buffer Model Removal message: This message carries information required by the receiver to
+ * manage its MMT de-capsulation buffer (see subclause 10.4.9 of ISO/IEC 23008-1) [37];
+ *
+ */
+
 #ifndef MODULES_DEMUX_MMT_ATSC3_MMT_SIGNALING_MESSAGE_H_
 #define MODULES_DEMUX_MMT_ATSC3_MMT_SIGNALING_MESSAGE_H_
 

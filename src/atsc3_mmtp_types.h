@@ -28,6 +28,7 @@
 //logging hack to quiet output....
 //#define _MMTP_DEBUG(...)
 //#define _MMTP_DEBUG(...)
+#define _MMTP_TRACE(...)   if(_MMTP_TRACE_ENABLED) { printf("%s:%d:TRACE :",__FILE__,__LINE__);_MMTP_PRINTLN(__VA_ARGS__); }
 
 #define __LOG_MPU_REASSEMBLY(...)
 

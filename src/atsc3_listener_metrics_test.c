@@ -17,6 +17,10 @@
   to invoke test driver, run ala:
 
   ./atsc3_listener_metrics_test vnic1
+
+
+  TODO: A/331 - Section 8.1.2.1.3 - Constraints on MMTP
+  	  PacketId
 */
 
 
@@ -112,7 +116,31 @@ uint16_t  dst_port = MMT_DST_PORT;
 uint32_t* dst_ip_addr_filter = &dst_ip;
 uint16_t* dst_ip_port_filter = &dst_port;
 
-typedef struct packet_mmt_stats {
+typedef struct packet_id_mpu_stats {
+	uint32_t mpu_sequence_number;
+	uint8_t  mpu_fragementation_counter;
+
+	uint32_t mpu_sequence_number_last;
+	uint8_t  mpu_fragementation_counter_last;
+
+} packet_id_mpu_stats_timed_t;
+
+typedef struct packet_id_mpu_stats_nontimed {
+	uint32_t mpu_nontimed_total;
+
+} packet_id_mpu_stats_nontimed_t;
+
+typedef struct packet_id_signalling_stats {
+
+	uint32_t signalling_messages_total;
+
+	uint32_t mmt_atsc3_message_count;
+	uint16_t mmt_atsc3_message_id;
+	uint16_t mmt_atsc3_message_content_type;
+
+} packet_id_signalling_stats_t;
+
+typedef struct packet_id_mmt_stats {
 	uint32_t packet_id;
 	uint32_t packet_sequence_number;
 	uint32_t timestamp;
@@ -120,17 +148,11 @@ typedef struct packet_mmt_stats {
 	uint32_t packet_sequence_number_last;
 	uint32_t timestamp_last;
 
-	//add in mpu and signaling metrics here
+	packet_id_mpu_stats_timed_t* 		mpu_stats_timed;
+	packet_id_mpu_stats_nontimed_t* 	mpu_stats_nontimed;
+	packet_id_signalling_stats_t* 		signalling_stats;
 
-	uint32_t mpu_sequence_number;
-	uint8_t  mpu_fragementation_counter;
-
-	uint32_t mpu_sequence_number_last;
-	uint8_t  mpu_fragementation_counter_last;
-
-
-
-} packet_mmt_stats_t;
+} packet_id_mmt_stats_t;
 
 typedef struct global_mmt_stats {
 
@@ -146,22 +168,22 @@ typedef struct global_mmt_stats {
 	uint32_t lls_parsed_success_counter;
 	uint32_t lls_parsed_failed_counter;
 
-	int					packet_id_n;
-	packet_mmt_stats_t** packet_id_vector;
+	int	packet_id_n;
+	packet_id_mmt_stats_t** packet_id_vector;
 
-	packet_mmt_stats_t* packet_id_delta;
+	packet_id_mmt_stats_t* packet_id_delta;
 
 } global_mmt_stats_t;
 
 global_mmt_stats_t* global_mmt_stats;
 
-packet_mmt_stats_t* find_packet_id(uint32_t packet_id) {
+packet_id_mmt_stats_t* find_packet_id(uint32_t packet_id) {
 	for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
-		packet_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
-		__TRACE("  find_packet_id with %u from %u", packet_id, packet_mmt_stats->packet_id);
+		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
+		__TRACE("  find_packet_id with %u from %u", packet_id, packet_id_mmt_stats->packet_id);
 
 		if(packet_mmt_stats->packet_id == packet_id) {
-			__TRACE("  find_packet_id returning with %p", packet_mmt_stats);
+			__TRACE("  find_packet_id returning with %p", packet_id_mmt_stats);
 
 			return packet_mmt_stats;
 		}
@@ -170,20 +192,20 @@ packet_mmt_stats_t* find_packet_id(uint32_t packet_id) {
 	return NULL;
 }
 
-packet_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
-	packet_mmt_stats_t* packet_mmt_stats = find_packet_id(packet_id);
+packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
+	packet_id_mmt_stats_t* packet_mmt_stats = find_packet_id(packet_id);
 	if(!packet_mmt_stats) {
 		if(global_mmt_stats->packet_id_n && global_mmt_stats->packet_id_vector) {
 
 			__INFO("*before realloc to %p, %i, adding %u", global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, packet_id);
 
-			global_mmt_stats->packet_id_vector = realloc(global_mmt_stats->packet_id_vector, (global_mmt_stats->packet_id_n + 1) * sizeof(packet_mmt_stats_t*));
+			global_mmt_stats->packet_id_vector = realloc(global_mmt_stats->packet_id_vector, (global_mmt_stats->packet_id_n + 1) * sizeof(packet_id_mmt_stats_t*));
 			if(!global_mmt_stats->packet_id_vector) {
 				abort();
 			}
 
 			//global_mmt_stats->packet_id_vector[global_mmt_stats->packet_id_n++]
-			packet_mmt_stats = global_mmt_stats->packet_id_vector[global_mmt_stats->packet_id_n++] = calloc(1, sizeof(packet_mmt_stats_t));
+			packet_mmt_stats = global_mmt_stats->packet_id_vector[global_mmt_stats->packet_id_n++] = calloc(1, sizeof(packet_id_mmt_stats_t));
 
 			if(!packet_mmt_stats) {
 				abort();
@@ -194,8 +216,8 @@ packet_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 
 		} else {
 			global_mmt_stats->packet_id_n = 1;
-			global_mmt_stats->packet_id_vector = calloc(1, sizeof(packet_mmt_stats_t*));
-			global_mmt_stats->packet_id_vector[0] = calloc(1, sizeof(packet_mmt_stats_t));
+			global_mmt_stats->packet_id_vector = calloc(1, sizeof(packet_id_mmt_stats_t*));
+			global_mmt_stats->packet_id_vector[0] = calloc(1, sizeof(packet_id_mmt_stats_t));
 
 			if(!global_mmt_stats->packet_id_vector) {
 				abort();
@@ -205,12 +227,16 @@ packet_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 			__INFO("*calloc %p for %u", packet_mmt_stats, packet_id);
 		}
 		packet_mmt_stats->packet_id = packet_id;
+		packet_mmt_stats->mpu_stats_timed = 	calloc(1, sizeof(packet_id_mpu_stats_timed_t));
+		packet_mmt_stats->mpu_stats_nontimed = 	calloc(1, sizeof(packet_id_mpu_stats_nontimed_t));
+		packet_mmt_stats->signalling_stats = 	calloc(1, sizeof(packet_id_signalling_stats_t));
+
 	}
 
 	return packet_mmt_stats;
 }
 
-void packet_mmt_stats_populate(packet_mmt_stats_t* packet_mmt_stats, mmtp_payload_fragments_union_t* mmtp_payload) {
+void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_payload_fragments_union_t* mmtp_payload) {
 	if(packet_mmt_stats->packet_sequence_number) {
 		packet_mmt_stats->packet_sequence_number_last = packet_mmt_stats->packet_sequence_number;
 	}
@@ -223,24 +249,31 @@ void packet_mmt_stats_populate(packet_mmt_stats_t* packet_mmt_stats, mmtp_payloa
 	packet_mmt_stats->timestamp = mmtp_payload->mmtp_packet_header.mmtp_timestamp;
 
 	if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
+		//assign our timed mpu stats
 		if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
-
-			if(packet_mmt_stats->mpu_sequence_number) {
-				packet_mmt_stats->mpu_sequence_number_last = packet_mmt_stats->mpu_sequence_number;
+			if(packet_mmt_stats->mpu_stats_timed->mpu_sequence_number) {
+				packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last = packet_mmt_stats->mpu_stats_timed->mpu_sequence_number;
+			} else {
+				packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last = 0;
 			}
+			packet_mmt_stats->mpu_stats_timed->mpu_sequence_number = mmtp_payload->mmtp_mpu_type_packet_header.mpu_sequence_number;
 
-			packet_mmt_stats->mpu_sequence_number = mmtp_payload->mmtp_mpu_type_packet_header.mpu_sequence_number;
-
-			if(packet_mmt_stats->mpu_fragementation_counter) {
-				packet_mmt_stats->mpu_fragementation_counter_last = packet_mmt_stats->mpu_fragementation_counter;
+			if(packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter) {
+				packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter_last = packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter;
+			} else {
+				packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter_last = 0;
 			}
-			packet_mmt_stats->mpu_fragementation_counter = mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragmentation_counter;
+			packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter = mmtp_payload->mmtp_mpu_type_packet_header.mpu_fragmentation_counter;
 
+		} else {
+			//assign our non-timed stats here
+			packet_mmt_stats->mpu_stats_nontimed->mpu_nontimed_total++;
 		}
-
+	} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x1) {
+		//assign our signalling stats here
+		packet_mmt_stats->signalling_stats->signalling_messages_total++;
 	}
 	global_mmt_stats->packet_id_delta = packet_mmt_stats;
-
 }
 
 
@@ -265,7 +298,7 @@ void dump_global_mmt_stats(){
 		__INFO("-----------------");
 
 		for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
-			packet_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
+			packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
 			__INFO(" mmt packet_id: %u", packet_mmt_stats->packet_id);
 			__INFO(" --------------");
 			__INFO("  current packet_sequence_number: %u", packet_mmt_stats->packet_sequence_number);
@@ -275,17 +308,25 @@ void dump_global_mmt_stats(){
 			compute_ntp32_to_seconds_microseconds(packet_mmt_stats->timestamp, &seconds, &microseconds);
 
 			__INFO("  current timestamp: packet_id: %u, ntp: %u (s: %u, uS: %u)", packet_mmt_stats->packet_id, packet_mmt_stats->timestamp, seconds, microseconds);
-			__INFO("  mpu_sequence_number: %u", packet_mmt_stats->mpu_sequence_number);
+			__INFO("  mpu_sequence_number: %u", packet_mmt_stats->mpu_stats_timed->mpu_sequence_number);
 			__INFO(" --------------");
 
 		}
 	}
 
 	if(global_mmt_stats->packet_id_delta) {
-		packet_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_delta;
-		if(packet_mmt_stats->mpu_sequence_number_last && (packet_mmt_stats->mpu_sequence_number_last != packet_mmt_stats->mpu_sequence_number && packet_mmt_stats->mpu_fragementation_counter_last != 0)) {
-			__INFO("**mpu sequence gap, packet_id: %u, FROM mpu:%u, packet_seq_num_last:%u, mpu_frag_counter_last: %d TO mpu:%u, packet_seq_num:%u", packet_mmt_stats->packet_id,
-					packet_mmt_stats->mpu_sequence_number_last, packet_mmt_stats->packet_sequence_number_last, packet_mmt_stats->mpu_fragementation_counter_last, packet_mmt_stats->mpu_sequence_number, packet_mmt_stats->packet_sequence_number);
+		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_delta;
+		if(packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last &&
+				(packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last != packet_mmt_stats->mpu_stats_timed->mpu_sequence_number && packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter_last != 0)) {
+
+			__WARN(" **mpu sequence gap, packet_id: %u, FROM mpu_sequence:%u, packet_seq_num_last:%u, mpu_frag_counter_last: %d TO mpu_sequence:%u, packet_seq_num:%u, mpu_frag_counter: %u",
+					packet_mmt_stats->packet_id,
+					packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last,
+					packet_mmt_stats->packet_sequence_number_last,
+					packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter_last,
+					packet_mmt_stats->mpu_stats_timed->mpu_sequence_number,
+					packet_mmt_stats->packet_sequence_number,
+					packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter);
 		}
 	}
 	//process any gaps or deltas
@@ -540,7 +581,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		}
 
 		global_mmt_stats->packet_counter_last_value = mmtp_payload->mmtp_packet_header.packet_counter;
-		packet_mmt_stats_t* packet_mmt_stats = find_or_get_packet_id(mmtp_payload->mmtp_packet_header.mmtp_packet_id);
+		packet_id_mmt_stats_t* packet_mmt_stats = find_or_get_packet_id(mmtp_payload->mmtp_packet_header.mmtp_packet_id);
 
 		packet_mmt_stats_populate(packet_mmt_stats, mmtp_payload);
 
