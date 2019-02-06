@@ -269,6 +269,14 @@ int process_lls_table_slt_update(lls_table_t* lls) {
 				global_stats->alc_arguments = calloc(1, sizeof(alc_arguments_t));
 
 				global_stats->sls_source_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_source_ip_address);
+				__ERROR("adding sls_source ip: %s as: %u.%u.%u.%u",
+						service->broadcast_svc_signaling.sls_source_ip_address,
+						(global_stats->sls_source_ip_address >> 24) & 0xFF,
+						(global_stats->sls_source_ip_address >> 16) & 0xFF,
+						(global_stats->sls_source_ip_address >> 8) & 0xFF,
+						(global_stats->sls_source_ip_address) & 0xFF);
+
+
 				global_stats->sls_destination_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_destination_ip_address);
 				global_stats->sls_destination_udp_port = parsePortIntoIntval(service->broadcast_svc_signaling.sls_destination_udp_port);
 
@@ -434,11 +442,21 @@ void dump_global_stats(){
 		__INFO(" mmtp_counter_recv: %u", 				global_stats->mmtp_counter_recv);
 		__INFO(" packet_counter_mpu: %u", 				global_stats->packet_counter_mpu);
 		__INFO(" packet_counter_signaling: %u",			global_stats->packet_counter_signaling);
+		__INFO(" -----------------");
 
 		__INFO(" lls_parsed_success_counter: %u", 		global_stats->lls_parsed_success_counter);
 		__INFO(" lls_parsed_slt_update: %u", 			global_stats->lls_parsed_slt_update);
-
 		__INFO(" lls_parsed_failed_counter: %u",		global_stats->lls_parsed_failed_counter);
+		__INFO(" -----------------");
+		__INFO(" alc_packets_recv: %u",		global_stats->alc_packets_recv);
+		__INFO(" alc_packets_decoded: %u",		global_stats->alc_packets_decoded);
+		__INFO(" alc_decode_errors: %u",		global_stats->alc_decode_errors);
+		__INFO(" -----------------");
+
+
+		__INFO(" filtered_ipv4_packet_count: %u",		global_stats->filtered_ipv4_packet_count);
+
+
 		__INFO(" -----------------");
 
 		//dump lls_slt
@@ -719,13 +737,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		goto cleanup;
 	}
 
-	//ATSC3/331 Section 6.1 - drop non mulitcast ip ranges - e.g not in  239.255.0.0 to 239.255.255.255
 
-	if(udp_packet->dst_ip_addr <= MIN_ATSC3_MULTICAST_BLOCK || udp_packet->dst_ip_addr >= MAX_ATSC3_MULTICAST_BLOCK) {
-		//out of range, so drop
-		global_stats->filtered_ipv4_packet_count++;
-		goto cleanup;
-	}
 
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
 		global_stats->lls_packet_counter_recv++;
@@ -757,10 +769,21 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		}
 
 		dump_global_stats();
+	}
 
-	} else if(global_stats->alc_session && global_stats->sls_source_ip_address == udp_packet->src_ip_addr &&
+
+	//ATSC3/331 Section 6.1 - drop non mulitcast ip ranges - e.g not in  239.255.0.0 to 239.255.255.255
+
+	if(udp_packet->dst_ip_addr <= MIN_ATSC3_MULTICAST_BLOCK || udp_packet->dst_ip_addr >= MAX_ATSC3_MULTICAST_BLOCK) {
+		//out of range, so drop
+		global_stats->filtered_ipv4_packet_count++;
+		goto cleanup;
+	}
+
+	if(global_stats->alc_session && global_stats->sls_source_ip_address == udp_packet->src_ip_addr &&
 				global_stats->sls_destination_ip_address == udp_packet->dst_ip_addr && global_stats->sls_destination_udp_port == udp_packet->dst_port) {
 		global_stats->alc_packets_recv++;
+		__INFO("***ALC - Have matching ALC session information");
 
 		if(global_stats->alc_session) {
 			//re-inject our alc session
