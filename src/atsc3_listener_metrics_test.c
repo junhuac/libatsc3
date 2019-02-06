@@ -39,10 +39,11 @@ int PACKET_COUNTER=0;
 #include <netinet/ip.h>
 #include <string.h>
 #include <sys/stat.h>
-#include "atsc3_mmtp_types.h"
 #include "atsc3_lls.h"
+#include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
 #include "atsc3_mmtp_ntp32_to_pts.h"
+#include "atsc3_utils.h"
 
 extern int _MPU_DEBUG_ENABLED;
 extern int _MMTP_DEBUG_ENABLED;
@@ -132,27 +133,42 @@ typedef struct packet_id_signalling_stats {
 } packet_id_signalling_stats_t;
 
 typedef struct packet_id_mmt_stats {
+	uint32_t ip;
+	uint16_t port;
 	uint32_t packet_id;
-	uint32_t packet_sequence_number;
-	uint32_t timestamp;
 
-	uint32_t packet_sequence_number_last;
+	uint32_t timestamp;
+	uint32_t packet_sequence_number;
+
 	uint32_t timestamp_last;
+	uint32_t packet_sequence_number_last_value;
+	uint32_t packet_sequence_number_last_gap;
+
+	uint32_t packet_sequence_number_max_gap;
+	uint32_t packet_sequence_number_missing;
+	uint32_t packet_sequence_number_total;
 
 	packet_id_mpu_stats_timed_t* 		mpu_stats_timed;
 	packet_id_mpu_stats_nontimed_t* 	mpu_stats_nontimed;
 	packet_id_signalling_stats_t* 		signalling_stats;
 
 } packet_id_mmt_stats_t;
-
-typedef struct global_mmt_stats {
-
-	uint32_t packet_counter_recv;
+/*
+ *
+ * todo: capture these on a mmtp flow
+ * uint32_t packet_counter;
 	uint32_t packet_counter_last_value;
 	uint32_t packet_counter_parse_error;
 	uint32_t packet_counter_last_gap_gap;
+	uint32_t packet_counter_max_gap_gap;
 	uint32_t packet_counter_missing;
+	uint32_t packet_counter_total
+ */
+typedef struct global_mmt_stats {
 
+	uint32_t lls_packet_counter_recv;
+	uint32_t mmtp_counter_recv;
+	uint32_t mmtp_counter_parse_error;
 	uint32_t packet_counter_mpu;
 	uint32_t packet_counter_signaling;
 
@@ -161,7 +177,6 @@ typedef struct global_mmt_stats {
 
 	int	packet_id_n;
 	packet_id_mmt_stats_t** packet_id_vector;
-
 	packet_id_mmt_stats_t* packet_id_delta;
 
 } global_mmt_stats_t;
@@ -180,12 +195,12 @@ int comparator_packet_id_mmt_stats_t(const void *a, const void *b)
 }
 
 
-packet_id_mmt_stats_t* find_packet_id(uint32_t packet_id) {
+packet_id_mmt_stats_t* find_packet_id(uint32_t ip, uint16_t port, uint32_t packet_id) {
 	for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
 		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
-		__TRACE("  find_packet_id with %u from %u", packet_id, packet_id_mmt_stats->packet_id);
+		__TRACE("  find_packet_id with ip: %u, port: %u, %u from %u", ip, port, packet_id, packet_id_mmt_stats->packet_id);
 
-		if(packet_mmt_stats->packet_id == packet_id) {
+		if(packet_mmt_stats->ip == ip && packet_mmt_stats->port == port && packet_mmt_stats->packet_id == packet_id) {
 			__TRACE("  find_packet_id returning with %p", packet_id_mmt_stats);
 
 			return packet_mmt_stats;
@@ -208,12 +223,12 @@ packet_id_mmt_stats_t* find_packet_id(uint32_t packet_id) {
 ==83453== LEAK SUMMARY:
  */
 
-packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
-	packet_id_mmt_stats_t* packet_mmt_stats = find_packet_id(packet_id);
+packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t ip, uint16_t port, uint32_t packet_id) {
+	packet_id_mmt_stats_t* packet_mmt_stats = find_packet_id(ip, port, packet_id);
 	if(!packet_mmt_stats) {
 		if(global_mmt_stats->packet_id_n && global_mmt_stats->packet_id_vector) {
 
-			__TRACE(" *before realloc to %p, %i, adding %u", global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, packet_id);
+			__INFO(" *before realloc to %p, %i, adding %u", global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, packet_id);
 
 			global_mmt_stats->packet_id_vector = realloc(global_mmt_stats->packet_id_vector, (global_mmt_stats->packet_id_n + 1) * sizeof(packet_id_mmt_stats_t*));
 			if(!global_mmt_stats->packet_id_vector) {
@@ -228,7 +243,7 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 			//sort after realloc
 		    qsort((void**)global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, sizeof(packet_id_mmt_stats_t**), comparator_packet_id_mmt_stats_t);
 
-		    __TRACE(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_mmt_stats->packet_id_n, packet_id);
+		    __INFO(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_mmt_stats->packet_id_n, packet_id);
 
 		} else {
 			global_mmt_stats->packet_id_n = 1;
@@ -240,8 +255,10 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 			}
 
 			packet_mmt_stats = global_mmt_stats->packet_id_vector[0];
-			__TRACE("*calloc %p for %u", packet_mmt_stats, packet_id);
+			__INFO("*calloc %p for %u", packet_mmt_stats, packet_id);
 		}
+		packet_mmt_stats->ip = ip;
+		packet_mmt_stats->port = port;
 		packet_mmt_stats->packet_id = packet_id;
 		packet_mmt_stats->mpu_stats_timed = 	calloc(1, sizeof(packet_id_mpu_stats_timed_t));
 		packet_mmt_stats->mpu_stats_nontimed = 	calloc(1, sizeof(packet_id_mpu_stats_nontimed_t));
@@ -252,15 +269,21 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 }
 
 void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_payload_fragments_union_t* mmtp_payload) {
+	packet_mmt_stats->packet_sequence_number_total++;
 	if(packet_mmt_stats->packet_sequence_number) {
-		packet_mmt_stats->packet_sequence_number_last = packet_mmt_stats->packet_sequence_number;
-	}
-
-	if(packet_mmt_stats->timestamp) {
-		packet_mmt_stats->timestamp_last = packet_mmt_stats->timestamp;
+		packet_mmt_stats->packet_sequence_number_last_value = packet_mmt_stats->packet_sequence_number;
+	} else {
+		packet_mmt_stats->packet_sequence_number_last_value = 0;
 	}
 
 	packet_mmt_stats->packet_sequence_number = mmtp_payload->mmtp_packet_header.packet_sequence_number;
+
+	if(packet_mmt_stats->timestamp) {
+		packet_mmt_stats->timestamp_last = packet_mmt_stats->timestamp;
+	} else {
+		packet_mmt_stats->timestamp_last = 0;
+	}
+
 	packet_mmt_stats->timestamp = mmtp_payload->mmtp_packet_header.mmtp_timestamp;
 
 	//mpu metadata
@@ -302,13 +325,9 @@ void dump_global_mmt_stats(){
 		__INFO("-----------------");
 		__INFO("Global MMT Stats: Runtime: ");
 		__INFO("-----------------");
-		__INFO(" packet_counter_recv: %u", 				global_mmt_stats->packet_counter_recv);
+		__INFO(" lls_packet_counter_recv: %u", 			global_mmt_stats->lls_packet_counter_recv);
 
-		__INFO(" packet_counter_last_value: %u", 		global_mmt_stats->packet_counter_last_value);
-		__INFO(" packet_counter_parse_error: %u", 		global_mmt_stats->packet_counter_parse_error);
-		__INFO(" packet_counter_last_gap_gap: %u", 		global_mmt_stats->packet_counter_last_gap_gap);
-		__INFO(" packet_counter_missing: %u", 			global_mmt_stats->packet_counter_missing);
-
+		__INFO(" mmtp_counter_recv: %u", 				global_mmt_stats->mmtp_counter_recv);
 		__INFO(" packet_counter_mpu: %u", 				global_mmt_stats->packet_counter_mpu);
 		__INFO(" packet_counter_signaling: %u",			global_mmt_stats->packet_counter_signaling);
 
@@ -316,9 +335,22 @@ void dump_global_mmt_stats(){
 		__INFO(" lls_parsed_failed_counter: %u",		global_mmt_stats->lls_parsed_failed_counter);
 		__INFO(" -----------------");
 
+
 		for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
 			packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
-			__INFO(" mmt packet_id: %u", packet_mmt_stats->packet_id);
+			double computed_flow_packet_loss = 0;
+			if(packet_mmt_stats->packet_sequence_number_total && packet_mmt_stats->packet_sequence_number_missing) {
+				computed_flow_packet_loss = 100.0* (packet_mmt_stats->packet_sequence_number_total / packet_mmt_stats->packet_sequence_number_missing);
+			}
+
+			__INFO(" Flow: %u.%u.%u.%u:%u,  mmt packet_id: %u", (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
+					, packet_mmt_stats->packet_id);
+			__INFO(" total packets rx: %u, lost: %u, lost pct %f, recent mfu gap size; %d, max mfu gap: %d ",
+					packet_mmt_stats->packet_sequence_number_total,
+					packet_mmt_stats->packet_sequence_number_missing,
+					computed_flow_packet_loss,
+					packet_mmt_stats->packet_sequence_number_last_gap,
+					packet_mmt_stats->packet_sequence_number_max_gap);
 
 			//print out ntp sample
 			uint16_t seconds;
@@ -345,7 +377,7 @@ void dump_global_mmt_stats(){
 			__WARN(" **mpu sequence gap, packet_id: %u, FROM mpu_sequence:%u, packet_seq_num_last:%u, mpu_frag_counter_last: %d TO mpu_sequence:%u, packet_seq_num:%u, mpu_frag_counter: %u",
 					packet_mmt_stats->packet_id,
 					packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last,
-					packet_mmt_stats->packet_sequence_number_last,
+					packet_mmt_stats->packet_sequence_number_last_value,
 					packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter_last,
 					packet_mmt_stats->mpu_stats_timed->mpu_sequence_number,
 					packet_mmt_stats->packet_sequence_number,
@@ -569,8 +601,12 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		__INFO("    Dst. Port   : %-5hu \t", (uint16_t)((udp_header[2] << 8) + udp_header[3]));
 	#endif
 
+
+	//drop mdNS
+	if(udp_packet->dst_ip_addr == 3758096635 && udp_packet->dst_port == 5353) goto cleanup;
+
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
-		global_mmt_stats->packet_counter_recv++;
+		global_mmt_stats->lls_packet_counter_recv++;
 		//process as lls
 		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
 		if(lls) {
@@ -585,13 +621,13 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		dump_global_mmt_stats();
 
 	} else if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
-		global_mmt_stats->packet_counter_recv++;
+		global_mmt_stats->mmtp_counter_recv++;
 
 		__DEBUG("data len: %d", udp_packet->data_length)
 		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
 
 		if(!mmtp_payload) {
-			global_mmt_stats->packet_counter_parse_error++;
+			global_mmt_stats->mmtp_counter_parse_error++;
 			__ERROR("mmtp_packet_parse: raw packet ptr is null, parsing failed for flow: %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu",
 					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
 					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
@@ -600,20 +636,35 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 					);
 			goto cleanup;
 		}
+		packet_id_mmt_stats_t* packet_mmt_stats = find_or_get_packet_id(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload->mmtp_packet_header.mmtp_packet_id);
 
 		//dump header, then dump applicable packet type
 		mmtp_packet_header_dump(mmtp_payload);
 
-		if(mmtp_payload->mmtp_packet_header.packet_counter != global_mmt_stats->packet_counter_last_value + 1 && global_mmt_stats->packet_counter_last_value) {
+		//top level flow check
+		//packet_mmt_stats->packet_sequence_number = mmtp_payload->mmtp_packet_header.packet_counter;
+		packet_mmt_stats->packet_sequence_number = mmtp_payload->mmtp_packet_header.packet_sequence_number;
 
-			global_mmt_stats->packet_counter_last_gap_gap = mmtp_payload->mmtp_packet_header.packet_counter - global_mmt_stats->packet_counter_last_value;
-			__WARN("  Missing packets from %u to %u (total: %u)  ", global_mmt_stats->packet_counter_last_value, mmtp_payload->mmtp_packet_header.packet_counter, global_mmt_stats->packet_counter_last_gap_gap);
+		if(mmtp_payload->mmtp_packet_header.packet_sequence_number != packet_mmt_stats->packet_sequence_number_last_value + 1 && packet_mmt_stats->packet_sequence_number) {
 
-			global_mmt_stats->packet_counter_missing += global_mmt_stats->packet_counter_last_gap_gap;
+			packet_mmt_stats->packet_sequence_number_last_gap = mmtp_payload->mmtp_packet_header.packet_sequence_number - packet_mmt_stats->packet_sequence_number_last_value;
+			if(packet_mmt_stats->packet_sequence_number_last_gap > packet_mmt_stats->packet_sequence_number_max_gap) {
+				packet_mmt_stats->packet_sequence_number_max_gap = packet_mmt_stats->packet_sequence_number_last_gap;
+			}
+			__WARN("  flow:  %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu | tracked as %u.%u.%u.%u:%u, packet_id: %d, %d, Missing packets from %u to %u (total: %u)  ",
+					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
+					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
+					ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr,
+					(uint16_t)((udp_header[2] << 8) + udp_header[3]),
+					(packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port,
+					mmtp_payload->mmtp_packet_header.mmtp_packet_id, packet_mmt_stats->packet_id,
+					packet_mmt_stats->packet_sequence_number_last_value,
+					mmtp_payload->mmtp_packet_header.packet_counter,
+					packet_mmt_stats->packet_sequence_number_last_gap);
+
+			packet_mmt_stats->packet_sequence_number_missing += packet_mmt_stats->packet_sequence_number_last_gap;
 		}
 
-		global_mmt_stats->packet_counter_last_value = mmtp_payload->mmtp_packet_header.packet_counter;
-		packet_id_mmt_stats_t* packet_mmt_stats = find_or_get_packet_id(mmtp_payload->mmtp_packet_header.mmtp_packet_id);
 
 		packet_mmt_stats_populate(packet_mmt_stats, mmtp_payload);
 
@@ -623,7 +674,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 			if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
 				//timed
 				//mpu_dump_flow(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
-				mpu_dump_reconstitued(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
+				//mpu_dump_reconstitued(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload);
 
 			} else {
 				//non-timed

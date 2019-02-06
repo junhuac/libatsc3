@@ -36,6 +36,9 @@
 #define _ATSC3_UTILS_TRACEN(...)
 #endif
 
+#define __toip(packet_mmt_stats) (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
+//%u.%u.%u.%u:%u
+
 void* extract(uint8_t *bufPosPtr, uint8_t *dest, int size);
 
 //key=value or key="value" attribute par collection parsing and searching
