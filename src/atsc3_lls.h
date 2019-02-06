@@ -24,9 +24,9 @@
 
 #define _LLS_DEBUG(...)   if(_LLS_DEBUG_ENABLED) { printf("%s:%d:DEBUG:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__); }
 #define _LLS_DEBUGF(...)  if(_LLS_DEBUG_ENABLED) { printf("%s:%d:DEBUG:",__FILE__,__LINE__);_LLS_PRINTF(__VA_ARGS__); }
-#define _LLS_DEBUGA(...)  _LLS_PRINTF(__VA_ARGS__);
-#define _LLS_DEBUGN(...)  _LLS_PRINTLN(__VA_ARGS__);
-#define _LLS_DEBUGNT(...)  _LLS_PRINTF(" ");_LLS_PRINTLN(__VA_ARGS__);
+#define _LLS_DEBUGA(...)  if(_LLS_DEBUG_ENABLED) { _LLS_PRINTF(__VA_ARGS__); }
+#define _LLS_DEBUGN(...)  if(_LLS_DEBUG_ENABLED) { _LLS_PRINTLN(__VA_ARGS__); }
+#define _LLS_DEBUGNT(...) if(_LLS_DEBUG_ENABLED){ _LLS_PRINTF(" ");_LLS_PRINTLN(__VA_ARGS__); }
 
 #ifdef __ENABLE_LLS_TRACE
 #define _LLS_TRACE(...)   printf("%s:%d:TRACE:",__FILE__,__LINE__);_LLS_PRINTLN(__VA_ARGS__);

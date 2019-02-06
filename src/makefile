@@ -6,7 +6,7 @@ intermediate_mmt: xml.o  atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmt_mpu_parser.o 
 intermediate_alc:alc_rx.c alc_session.c fec.c null_fec.c rs_fec.c xor_fec.c
 libatsc3_core: libatsc3.o
 unit_tests: atsc3_lmt_test atsc3_lls_slt_parser_test atsc3_lls_test atsc3_lls_SystemTime_test atsc3_mmt_signaling_message_test
-listener_tests: atsc3_alc_listener_test atsc3_lls_listener_test atsc3_mmt_listener_test atsc3_listener_test 
+listener_tests: atsc3_alc_listener_test atsc3_lls_listener_test atsc3_mmt_listener_test atsc3_listener_test atsc3_listener_metrics_test 
 
 
 #intermediate_mmt object gen
@@ -76,3 +76,7 @@ atsc3_mmt_listener_test: atsc3_mmt_listener_test.c libatsc3.o
 	
 atsc3_listener_test: atsc3_listener_test.c libatsc3.o
 	cc -g atsc3_listener_test.c libatsc3.o -lz -lpcap -o atsc3_listener_test
+	
+atsc3_listener_metrics_test: atsc3_listener_metrics_test.c libatsc3.o
+	cc -g atsc3_listener_metrics_test.c libatsc3.o -lz -lpcap -o atsc3_listener_metrics_test
+	

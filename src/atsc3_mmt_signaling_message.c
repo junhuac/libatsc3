@@ -102,6 +102,8 @@ uint8_t* signaling_message_parse_payload_table(mmtp_payload_fragments_union_t *s
 		return NULL;
 	}
 
+	//if msg_id <= 0x0010 MPI_message || PA_message -> 32 bits
+
 	uint8_t *buf = udp_raw_buf;
 	if(si_message->mmtp_signalling_message_fragments.message_id == PA_message) {
 		buf = pa_message_parse(si_message, buf, buf_size);
@@ -173,6 +175,7 @@ uint8_t* mpt_message_parse(mmtp_payload_fragments_union_t* si_message, uint8_t* 
 	uint8_t scratch[2];
 	buf = extract(buf, scratch, 2);
 	mpt_message->message_id = (scratch[0] << 8) | (scratch[1]);
+	//if message_id==20 - full message, otherwise subset n-1
 
 	uint8_t scratch_single;
 	buf = extract(buf, &scratch_single, 1);
@@ -195,7 +198,9 @@ uint8_t* mpt_message_parse(mmtp_payload_fragments_union_t* si_message, uint8_t* 
 
 	buf = extract(buf, &scratch_single, 1);
 	if((scratch_single >> 2) != 0x3F) {
-		_MMSM_WARN("mp_table reserved 6 bits are not set")
+	//	_MMSM_WARN("mp_table reserved 6 bits are not set - message_id: 0x%04x, table_id: 0x%02x, packet_counter: %u", si_message->mmtp_signalling_message_fragments.message_id, mpt_message->mp_table.table_id, si_message->mmtp_mpu_type_packet_header.packet_counter);
+
+		goto cleanup;
 	}
 
 	//set MP_table_mode
@@ -250,14 +255,14 @@ uint8_t* mpt_message_parse(mmtp_payload_fragments_union_t* si_message, uint8_t* 
 	}
 
 
-
+cleanup:
 
 	return NULL;
 }
 
 
 uint8_t* si_message_not_supported(mmtp_payload_fragments_union_t* si_message, uint8_t* udp_raw_buf, uint8_t udp_raw_buf_size) {
-	_MMSM_WARN("signalling information message id not supported: 0x%04x", si_message->mmtp_signalling_message_fragments.message_id);
+//	_MMSM_WARN("signalling information message id not supported: 0x%04x", si_message->mmtp_signalling_message_fragments.message_id);
 
 	return NULL;
 }
