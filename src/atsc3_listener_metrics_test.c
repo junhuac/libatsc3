@@ -221,6 +221,7 @@ typedef struct global_mmt_stats {
 
 	int lls_slt_service_id_alc;
 	uint32_t sls_source_ip_address;
+	bool sls_relax_source_ip_check;
 	uint32_t sls_destination_ip_address;
 	uint16_t sls_destination_udp_port;
 	alc_arguments_t* alc_arguments;
@@ -259,6 +260,8 @@ int process_lls_table_slt_update(lls_table_t* lls) {
 		lls_table_free(global_stats->lls_table_slt);
 		global_stats->lls_table_slt = NULL;
 	}
+	global_stats->lls_table_slt = lls;
+
 
 	for(int i=0; i < lls->slt_table.service_entry_n; i++) {
 		service_t* service = lls->slt_table.service_entry[i];
@@ -280,6 +283,8 @@ int process_lls_table_slt_update(lls_table_t* lls) {
 				global_stats->sls_destination_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_destination_ip_address);
 				global_stats->sls_destination_udp_port = parsePortIntoIntval(service->broadcast_svc_signaling.sls_destination_udp_port);
 				global_stats->sls_source_ip_address = parsePortIntoIntval(service->broadcast_svc_signaling.sls_source_ip_address);
+
+				lls_dump_instance_table(global_stats->lls_table_slt);
 
 				global_stats->alc_session = open_alc_session(global_stats->alc_arguments);
 
@@ -781,7 +786,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		goto cleanup;
 	}
 
-	if(global_stats->alc_session && global_stats->sls_source_ip_address == udp_packet->src_ip_addr &&
+	if(global_stats->alc_session &&
+
+		(global_stats->sls_relax_source_ip_check || global_stats->sls_source_ip_address == udp_packet->src_ip_addr) &&
 				global_stats->sls_destination_ip_address == udp_packet->dst_ip_addr && global_stats->sls_destination_udp_port == udp_packet->dst_port) {
 		global_stats->alc_packets_recv++;
 		__INFO("***ALC - Have matching ALC session information");
@@ -907,7 +914,7 @@ int main(int argc,char **argv) {
 
 	_MPU_DEBUG_ENABLED = 0;
 	_MMTP_DEBUG_ENABLED = 0;
-	_LLS_DEBUG_ENABLED = 0;
+	_LLS_DEBUG_ENABLED = 1;
 
     char *dev;
 
@@ -961,7 +968,7 @@ int main(int argc,char **argv) {
     mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
     global_stats = calloc(1, sizeof(*global_stats));
-
+    global_stats->sls_relax_source_ip_check = true;
     mkdir("mpu", 0777);
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);

@@ -188,7 +188,7 @@ lls_table_t* lls_table_create( uint8_t* lls_packet, int size) {
 	if(!xml_root_node)
 			goto cleanup;
 
-	_LLS_TRACE("lls_create_table: calling lls_create_table_type_instance with xml children count: %d\n", xml_node_children(xml_root));
+	_LLS_TRACE("lls_create_table: calling lls_create_table_type_instance with xml children count: %d\n", xml_node_children(xml_root_node));
 
 	res = lls_create_table_type_instance(lls_table, xml_root_node);
 
