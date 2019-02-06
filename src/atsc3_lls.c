@@ -2,6 +2,25 @@
  *
  * atsc3_llt.c:  driver for ATSC 3.0 LLS listener over udp
  *
+ *
+ * jjustman@ngbp.org
+ *
+ *
+ * Borrowed from A/331 6.3 Service List Table (SLT)
+ *
+ *
+ * 6.3 Service List Table (SLT)
+ *  The Service List Table (SLT) is one of the instance types of LLS information.
+ *  The function of the SLT is similar to that of the Program Association Table (PAT) in MPEG-2 Systems [33],
+ *  and the Fast Information Channel (FIC) found in ATSC A/153, Part 3 [44]. For a receiver first encountering the
+ *  broadcast emission, this is the place to start. It supports a rapid channel scan which allows a receiver to
+ *  build a list of all the services it can receive, with their channel name, channel number, etc., and it provides
+ *  bootstrap information that allows a receiver to discover the SLS for each service. For ROUTE/DASH-delivered services,
+ *  the bootstrap information includes the source IP address, the destination IP address and the destination port of the
+ *  LCT channel that carries the ROUTE-specific SLS.
+ *
+ *  For MMTP/MPU-delivered services, the bootstrap information includes the destination IP address and destination
+ *  port of the MMTP session carrying the MMTP- specific SLS.
  */
 
 #include "atsc3_utils.h"
@@ -596,44 +615,44 @@ cleanup:
 void lls_dump_instance_table(lls_table_t* base_table) {
 	_LLS_TRACE("dump_instance_table: base_table address: %p", base_table);
 
-	_LLS_DEBUGN("");
-	_LLS_DEBUGN("--------------------------");
-	_LLS_DEBUGN("LLS Base Table:");
-	_LLS_DEBUGN("--------------------------");
-	_LLS_DEBUGN("lls_table_id             : %d (0x%x)", base_table->lls_table_id, base_table->lls_table_id);
-	_LLS_DEBUGN("lls_group_id             : %d (0x%x)", base_table->lls_group_id, base_table->lls_group_id);
-	_LLS_DEBUGN("group_count_minus1       : %d (0x%x)", base_table->group_count_minus1, base_table->group_count_minus1);
-	_LLS_DEBUGN("lls_table_version        : %d (0x%x)", base_table->lls_table_version, base_table->lls_table_version);
-	_LLS_DEBUGN("xml decoded payload size : %d", 	base_table->raw_xml.xml_payload_size);
-	_LLS_DEBUGN("--------------------------");
+	_LLS_INFO("");
+	_LLS_INFO("--------------------------");
+	_LLS_INFO(" LLS Base Table:");
+	_LLS_INFO("--------------------------");
+	_LLS_INFO(" lls_table_id             : %d (0x%x)", base_table->lls_table_id, base_table->lls_table_id);
+	_LLS_INFO(" lls_group_id             : %d (0x%x)", base_table->lls_group_id, base_table->lls_group_id);
+	_LLS_INFO(" group_count_minus1       : %d (0x%x)", base_table->group_count_minus1, base_table->group_count_minus1);
+	_LLS_INFO(" lls_table_version        : %d (0x%x)", base_table->lls_table_version, base_table->lls_table_version);
+	_LLS_INFO(" xml decoded payload size : %d", 	base_table->raw_xml.xml_payload_size);
+	_LLS_INFO(" --------------------------");
 
 	if(base_table->raw_xml.xml_payload) {
-		_LLS_DEBUGA("\t%s", base_table->raw_xml.xml_payload);
+		_LLS_INFO("\t%s", base_table->raw_xml.xml_payload);
 	}
 
-	_LLS_DEBUGN("--------------------------");
+	_LLS_INFO(" --------------------------");
 
 	if(base_table->lls_table_id == SLT) {
 
-		_LLS_DEBUGNT("SLT: Service contains %d entries:", base_table->slt_table.service_entry_n);
+		_LLS_INFO("SLT: Service contains %d entries:", base_table->slt_table.service_entry_n);
 
 		for(int i=0l; i < base_table->slt_table.service_entry_n; i++) {
 			service_t* service = base_table->slt_table.service_entry[i];
-			_LLS_DEBUGN("---------------------------");
-			_LLS_DEBUGNT("service_id                : %d", service->service_id);
-			_LLS_DEBUGNT("global_service_id         : %s", service->global_service_id);
-			_LLS_DEBUGNT("major_channel_no          : %d", service->major_channel_no);
-			_LLS_DEBUGNT("minor_channel_no          : %d", service->minor_channel_no);
-			_LLS_DEBUGNT("service_category          : %d", service->service_category);
-			_LLS_DEBUGNT("short_service_name        : %s", service->short_service_name);
-			_LLS_DEBUGNT("slt_svc_seq_num           : %d", service->slt_svc_seq_num);
-			_LLS_DEBUGN("---------------------------");
-			_LLS_DEBUGNT("broadcast_svc_signaling");
-			_LLS_DEBUGN("---------------------------");
-			_LLS_DEBUGNT("sls_protocol              : %d", service->broadcast_svc_signaling.sls_protocol);
-			_LLS_DEBUGNT("sls_destination_ip_address: %s", service->broadcast_svc_signaling.sls_destination_ip_address);
-			_LLS_DEBUGNT("sls_destination_udp_port  : %s", service->broadcast_svc_signaling.sls_destination_udp_port);
-			_LLS_DEBUGNT("sls_source_ip_address     : %s", service->broadcast_svc_signaling.sls_source_ip_address);
+			_LLS_INFO(" ---------------------------");
+			_LLS_INFO("  service_id                : %d", service->service_id);
+			_LLS_INFO("  global_service_id         : %s", service->global_service_id);
+			_LLS_INFO("  major_channel_no          : %d", service->major_channel_no);
+			_LLS_INFO("  minor_channel_no          : %d", service->minor_channel_no);
+			_LLS_INFO("  service_category          : %d", service->service_category);
+			_LLS_INFO("  short_service_name        : %s", service->short_service_name);
+			_LLS_INFO("  slt_svc_seq_num           : %d", service->slt_svc_seq_num);
+			_LLS_INFO(" ---------------------------");
+			_LLS_INFO(" broadcast_svc_signaling");
+			_LLS_INFO(" ---------------------------");
+			_LLS_INFO("  sls_protocol              : %d", service->broadcast_svc_signaling.sls_protocol);
+			_LLS_INFO("  sls_destination_ip_address: %s", service->broadcast_svc_signaling.sls_destination_ip_address);
+			_LLS_INFO("  sls_destination_udp_port  : %s", service->broadcast_svc_signaling.sls_destination_udp_port);
+			_LLS_INFO("  sls_source_ip_address     : %s", service->broadcast_svc_signaling.sls_source_ip_address);
 
 		}
 		_LLS_DEBUGN("--------------------------");
@@ -641,18 +660,17 @@ void lls_dump_instance_table(lls_table_t* base_table) {
 
 	//decorate with instance types: hd = int16_t, hu = uint_16t, hhu = uint8_t
 	if(base_table->lls_table_id == SystemTime) {
-		_LLS_DEBUGN("SystemTime:");
-		_LLS_DEBUGN("--------------------------");
-		_LLS_DEBUGNT("current_utc_offset       : %hd", base_table->system_time_table.current_utc_offset);
-		_LLS_DEBUGNT("ptp_prepend              : %hu", base_table->system_time_table.ptp_prepend);
-		_LLS_DEBUGNT("leap59                   : %d",  base_table->system_time_table.leap59);
-		_LLS_DEBUGNT("leap61                   : %d",  base_table->system_time_table.leap61);
+		_LLS_INFO(" SystemTime:");
+		_LLS_INFO(" --------------------------");
+		_LLS_INFO("  current_utc_offset       : %hd", base_table->system_time_table.current_utc_offset);
+		_LLS_INFO("  ptp_prepend              : %hu", base_table->system_time_table.ptp_prepend);
+		_LLS_INFO("  leap59                   : %d",  base_table->system_time_table.leap59);
+		_LLS_INFO("  leap61                   : %d",  base_table->system_time_table.leap61);
+		_LLS_INFO("  utc_local_offset         : %s",  base_table->system_time_table.utc_local_offset);
 
-		_LLS_DEBUGNT("utc_local_offset         : %s",  base_table->system_time_table.utc_local_offset);
-
-		_LLS_DEBUGNT("ds_status                : %d",  base_table->system_time_table.ds_status);
-		_LLS_DEBUGNT("ds_day_of_month          : %hhu", base_table->system_time_table.ds_day_of_month);
-		_LLS_DEBUGNT("ds_hour                  : %hhu", base_table->system_time_table.ds_hour);
+		_LLS_INFO("  ds_status                : %d",  base_table->system_time_table.ds_status);
+		_LLS_INFO("  ds_day_of_month          : %hhu", base_table->system_time_table.ds_day_of_month);
+		_LLS_INFO("  ds_hour                  : %hhu", base_table->system_time_table.ds_hour);
 		_LLS_DEBUGN("--------------------------");
 
 	}

@@ -94,7 +94,6 @@ void __trace_dump_ip_header_info(u_char* ip_header) {
 uint32_t* dst_ip_addr_filter = NULL;
 uint16_t* dst_ip_port_filter = NULL;
 
-
 typedef struct udp_packet {
 	uint32_t		src_ip_addr;
 	uint32_t		dst_ip_addr;
@@ -106,7 +105,6 @@ typedef struct udp_packet {
 	u_char* 		data;
 
 } udp_packet_t;
-
 
 typedef struct packet_id_mpu_stats {
 	uint32_t mpu_sequence_number;
@@ -178,6 +176,8 @@ typedef struct global_mmt_stats {
 	int	packet_id_n;
 	packet_id_mmt_stats_t** packet_id_vector;
 	packet_id_mmt_stats_t* packet_id_delta;
+
+	lls_table_t* lls_table;
 
 } global_mmt_stats_t;
 
@@ -323,7 +323,7 @@ void dump_global_mmt_stats(){
 
 	if(DUMP_COUNTER++%1000 == 0) {
 		__INFO("-----------------");
-		__INFO("Global MMT Stats: Runtime: ");
+		__INFO(" Global MMT Stats: Runtime: ");
 		__INFO("-----------------");
 		__INFO(" lls_packet_counter_recv: %u", 			global_mmt_stats->lls_packet_counter_recv);
 
@@ -334,7 +334,11 @@ void dump_global_mmt_stats(){
 		__INFO(" lls_parsed_success_counter: %u", 		global_mmt_stats->lls_parsed_success_counter);
 		__INFO(" lls_parsed_failed_counter: %u",		global_mmt_stats->lls_parsed_failed_counter);
 		__INFO(" -----------------");
-
+		//dump lls
+		if(global_mmt_stats->lls_table) {
+			lls_dump_instance_table(global_mmt_stats->lls_table);
+			__INFO(" -----------------");
+		}
 
 		for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
 			packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
@@ -607,12 +611,15 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
 		global_mmt_stats->lls_packet_counter_recv++;
+
 		//process as lls
 		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
 		if(lls) {
 			global_mmt_stats->lls_parsed_success_counter++;
-			lls_dump_instance_table(lls);
-			lls_table_free(lls);
+			if(global_mmt_stats->lls_table) {
+				lls_table_free(global_mmt_stats->lls_table);
+			}
+			global_mmt_stats->lls_table = lls;
 		} else {
 			global_mmt_stats->lls_parsed_failed_counter++;
 			__ERROR("unable to parse LLS table");
