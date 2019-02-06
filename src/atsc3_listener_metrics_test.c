@@ -177,6 +177,18 @@ typedef struct global_mmt_stats {
 
 global_mmt_stats_t* global_mmt_stats;
 
+int comparator_packet_id_mmt_stats_t(const void *a, const void *b)
+{
+	__TRACE("  comparator_packet_id_mmt_stats_t with %u from %u", ((packet_id_mmt_stats_t *)a)->packet_id, ((packet_id_mmt_stats_t *)b)->packet_id);
+
+	if ( ((packet_id_mmt_stats_t*)a)->packet_id <  ((packet_id_mmt_stats_t*)b)->packet_id ) return -1;
+	if ( ((packet_id_mmt_stats_t*)a)->packet_id == ((packet_id_mmt_stats_t*)b)->packet_id ) return  0;
+	if ( ((packet_id_mmt_stats_t*)a)->packet_id >  ((packet_id_mmt_stats_t*)b)->packet_id ) return  1;
+
+	return 0;
+}
+
+
 packet_id_mmt_stats_t* find_packet_id(uint32_t packet_id) {
 	for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
 		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
@@ -192,6 +204,18 @@ packet_id_mmt_stats_t* find_packet_id(uint32_t packet_id) {
 	return NULL;
 }
 
+/**
+ *
+==83453== 42,754,560 bytes in 83,505 blocks are definitely lost in loss record 78 of 79
+==83453==    at 0x1000D96EA: calloc (in /usr/local/Cellar/valgrind/3.14.0/lib/valgrind/vgpreload_memcheck-amd64-darwin.so)
+==83453==    by 0x100001D06: mpu_dump_reconstitued (atsc3_listener_metrics_test.c:431)
+==83453==    by 0x1000025BD: process_packet (atsc3_listener_metrics_test.c:611)
+==83453==    by 0x10010FF60: pcap_read_bpf (in /usr/lib/libpcap.A.dylib)
+==83453==    by 0x100113F82: pcap_loop (in /usr/lib/libpcap.A.dylib)
+==83453==    by 0x100002A7E: main (atsc3_listener_metrics_test.c:716)
+==83453==
+==83453== LEAK SUMMARY:
+ */
 packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 	packet_id_mmt_stats_t* packet_mmt_stats = find_packet_id(packet_id);
 	if(!packet_mmt_stats) {
@@ -211,6 +235,8 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 				abort();
 			}
 
+			//sort after realloc
+		    qsort((void**)global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, sizeof(packet_id_mmt_stats_t**), comparator_packet_id_mmt_stats_t);
 
 			__INFO("*after realloc to %p, %i, adding %u", packet_mmt_stats, global_mmt_stats->packet_id_n, packet_id);
 
