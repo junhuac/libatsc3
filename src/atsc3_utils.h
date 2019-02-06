@@ -70,7 +70,10 @@ block_t* block_Duplicate(block_t* a);
 void block_Release(block_t* a);
 
 void freesafe(void* tofree);
+void freeclean(void** tofree);
 
+uint32_t parseIpAddressIntoIntval(char* dst_ip);
 
+uint16_t parsePortIntoIntval(char* dst_port);
 
 #endif /* ATSC3_UTILS_H_ */

@@ -147,11 +147,64 @@ typedef struct slt_entry {
 
 
 /*
- *       <BroadcastSvcSignaling slsProtocol="2" slsDestinationIpAddress="239.255.10.1" slsDestinationUdpPort="51001" slsSourceIpAddress="172.16.200.1" />
  *
- *
- *       0..1
+ * A/331 Section 6.3 Service List Table XML
+
+<?xml version="1.0" encoding="UTF-8"?>
+<SLT xmlns="tag:atsc.org,2016:XMLSchemas/ATSC3/Delivery/SLT/1.0/" bsid="50">
+   <Service serviceId="1001" globalServiceID="urn:atsc:serviceid:ateme_mmt_1" majorChannelNo="10" minorChannelNo="1" serviceCategory="1" shortServiceName="ATEME MMT 1" sltSvcSeqNum="0">
+      <BroadcastSvcSignaling slsProtocol="2" slsDestinationIpAddress="239.255.10.1" slsDestinationUdpPort="51001" slsSourceIpAddress="172.16.200.1" />
+   </Service>
+   <Service serviceId="1002" globalServiceID="urn:atsc:serviceid:ateme_mmt_2" majorChannelNo="10" minorChannelNo="2" serviceCategory="1" shortServiceName="ATEME MMT 2" sltSvcSeqNum="0">
+      <BroadcastSvcSignaling slsProtocol="2" slsDestinationIpAddress="239.255.10.2" slsDestinationUdpPort="51002" slsSourceIpAddress="172.16.200.1" />
+   </Service>
+   <Service serviceId="1003" globalServiceID="urn:atsc:serviceid:ateme_mmt_3" majorChannelNo="10" minorChannelNo="3" serviceCategory="1" shortServiceName="ATEME MMT 3" sltSvcSeqNum="0">
+      <BroadcastSvcSignaling slsProtocol="2" slsDestinationIpAddress="239.255.10.3" slsDestinationUdpPort="51003" slsSourceIpAddress="172.16.200.1" />
+   </Service>
+   <Service serviceId="1004" globalServiceID="urn:atsc:serviceid:ateme_mmt_4" majorChannelNo="10" minorChannelNo="4" serviceCategory="1" shortServiceName="ATEME MMT 4" sltSvcSeqNum="0">
+      <BroadcastSvcSignaling slsProtocol="2" slsDestinationIpAddress="239.255.10.4" slsDestinationUdpPort="51004" slsSourceIpAddress="172.16.200.1" />
+   </Service>
+   <Service serviceId="5009" globalServiceID="urn:atsc:serviceid:esg" serviceCategory="4" shortServiceName="ESG" sltSvcSeqNum="0">
+      <BroadcastSvcSignaling slsProtocol="1" slsDestinationIpAddress="239.255.20.9" slsDestinationUdpPort="52009" slsSourceIpAddress="172.16.200.1" />
+   </Service>
+</SLT>
+
+
+ Table 6.4 Code Values for SLT.Service@serviceCategory
+
+
+	serviceCategory 		Meaning
+	---------------			-------------
+	0						ATSC Reserved
+	1						Linear A/V service
+	2						Linear audio only service
+	3						App-based service
+	4						ESG service (program guide)
+	5						EAS service (emergency alert)
+	Other values			ATSC Reserved
+
+  	slsProtocol				Meaning
+ 	---------- 				-------------
+ 	0 						ATSC Reserved
+ 	1						ROUTE
+ 	2						MMTP
+ 	other values			ATSC Reserved
+
  */
+enum serviceCategory {
+	SERVICE_CATEGORY_ATSC_RESERVED=0,
+	SERVICE_CATEGORY_LINEAR_AV_SERVICE=1,
+	SERVICE_CATEGORY_LINEAR_AUDIO_ONLY_SERVICE=2,
+	SERVICE_CATEGORY_APP_BASED_SERVICE=3,
+	SERVICE_CATEGORY_ESG_SERVICE=4,
+	SERVICE_CATEGORY_EAS_SERVICE=5,
+	SERVICE_CATEGORY_ATSC_RESERVED_OTHER=-1	};
+
+enum slsProtocol {
+	SLS_PROTOCOL_ATSC_RESERVED=0,
+	SLS_PROTOCOL_ROUTE=1,
+	SLS_PROTOCOL_MMTP=2,
+	SLS_PROTOCOL_ATSC_RESERVED_OTHER=-1};
 
 typedef struct broadcast_svc_signaling {
 	int 	sls_protocol;

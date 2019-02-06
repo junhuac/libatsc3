@@ -43,7 +43,10 @@ int PACKET_COUNTER=0;
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
 #include "atsc3_mmtp_ntp32_to_pts.h"
+#include "alc_rx.h"
+#include "alc_channel.h"
 #include "atsc3_utils.h"
+#include "atsc3_alc_utils.h"
 
 extern int _MPU_DEBUG_ENABLED;
 extern int _MMTP_DEBUG_ENABLED;
@@ -151,6 +154,7 @@ typedef struct packet_id_mmt_stats {
 	packet_id_signalling_stats_t* 		signalling_stats;
 
 } packet_id_mmt_stats_t;
+
 /*
  *
  * todo: capture these on a mmtp flow
@@ -162,26 +166,45 @@ typedef struct packet_id_mmt_stats {
 	uint32_t packet_counter_missing;
 	uint32_t packet_counter_total
  */
+/*
+ * also capture ALC flow
+ */
 typedef struct global_mmt_stats {
+	//todo - move to vector
+	lls_table_t* lls_table_slt;
 
 	uint32_t lls_packet_counter_recv;
+	uint32_t lls_parsed_success_counter;
+	uint32_t lls_parsed_slt_update;
+	uint32_t lls_parsed_failed_counter;
+
 	uint32_t mmtp_counter_recv;
 	uint32_t mmtp_counter_parse_error;
 	uint32_t packet_counter_mpu;
 	uint32_t packet_counter_signaling;
 
-	uint32_t lls_parsed_success_counter;
-	uint32_t lls_parsed_failed_counter;
-
 	int	packet_id_n;
 	packet_id_mmt_stats_t** packet_id_vector;
 	packet_id_mmt_stats_t* packet_id_delta;
 
-	lls_table_t* lls_table;
+	//alc - assume single session for now
+	//TODO, refactor
+
+	int lls_slt_service_id_alc;
+	uint32_t sls_source_ip_address;
+	uint32_t sls_destination_ip_address;
+	uint16_t sls_destination_udp_port;
+	alc_arguments_t* alc_arguments;
+	alc_session_t* alc_session;
+
+	uint32_t alc_packets_recv;
+	uint32_t alc_packets_decoded;
+	uint32_t alc_decode_errors;
+
 
 } global_mmt_stats_t;
 
-global_mmt_stats_t* global_mmt_stats;
+global_mmt_stats_t* global_stats;
 
 int comparator_packet_id_mmt_stats_t(const void *a, const void *b)
 {
@@ -194,10 +217,60 @@ int comparator_packet_id_mmt_stats_t(const void *a, const void *b)
 	return 0;
 }
 
+/**
+ * lls and alc glue for slt
+ *
+ */
+
+int process_lls_table_slt_update(lls_table_t* lls) {
+
+	if(global_stats->lls_table_slt) {
+		lls_table_free(global_stats->lls_table_slt);
+		global_stats->lls_table_slt = NULL;
+	}
+
+	for(int i=0; i < lls->slt_table.service_entry_n; i++) {
+		service_t* service = lls->slt_table.service_entry[i];
+
+		if(service->broadcast_svc_signaling.sls_protocol == SLS_PROTOCOL_ROUTE) {
+			if(!global_stats->alc_session) {
+				global_stats->lls_slt_service_id_alc = service->service_id;
+				global_stats->alc_arguments = calloc(1, sizeof(alc_arguments_t));
+
+				global_stats->sls_source_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_source_ip_address);
+				global_stats->sls_destination_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_destination_ip_address);
+				global_stats->sls_destination_udp_port = parsePortIntoIntval(service->broadcast_svc_signaling.sls_destination_udp_port);
+
+				global_stats->alc_session = open_alc_session(global_stats->alc_arguments);
+
+				if(!global_stats->alc_session) {
+				  __ERROR("Unable to instantiate alc session for service_id: %d via SLS_PROTOCOL_ROUTE", service->service_id);
+					goto cleanup;
+				}
+
+		  	}
+		}
+	}
+	global_stats->lls_parsed_slt_update++;
+	return 0;
+
+cleanup:
+	if(global_stats->alc_arguments) {
+		free(global_stats->alc_arguments);
+		global_stats->alc_arguments = NULL;
+	}
+
+	if(global_stats->alc_session) {
+		free(global_stats->alc_session);
+		global_stats->alc_session = NULL;
+	}
+	return -1;
+}
+
 
 packet_id_mmt_stats_t* find_packet_id(uint32_t ip, uint16_t port, uint32_t packet_id) {
-	for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
-		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
+	for(int i=0; i < global_stats->packet_id_n; i++ ) {
+		packet_id_mmt_stats_t* packet_mmt_stats = global_stats->packet_id_vector[i];
 		__TRACE("  find_packet_id with ip: %u, port: %u, %u from %u", ip, port, packet_id, packet_id_mmt_stats->packet_id);
 
 		if(packet_mmt_stats->ip == ip && packet_mmt_stats->port == port && packet_mmt_stats->packet_id == packet_id) {
@@ -226,35 +299,35 @@ packet_id_mmt_stats_t* find_packet_id(uint32_t ip, uint16_t port, uint32_t packe
 packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t ip, uint16_t port, uint32_t packet_id) {
 	packet_id_mmt_stats_t* packet_mmt_stats = find_packet_id(ip, port, packet_id);
 	if(!packet_mmt_stats) {
-		if(global_mmt_stats->packet_id_n && global_mmt_stats->packet_id_vector) {
+		if(global_stats->packet_id_n && global_stats->packet_id_vector) {
 
-			__INFO(" *before realloc to %p, %i, adding %u", global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, packet_id);
+			__INFO(" *before realloc to %p, %i, adding %u", global_stats->packet_id_vector, global_stats->packet_id_n, packet_id);
 
-			global_mmt_stats->packet_id_vector = realloc(global_mmt_stats->packet_id_vector, (global_mmt_stats->packet_id_n + 1) * sizeof(packet_id_mmt_stats_t*));
-			if(!global_mmt_stats->packet_id_vector) {
+			global_stats->packet_id_vector = realloc(global_stats->packet_id_vector, (global_stats->packet_id_n + 1) * sizeof(packet_id_mmt_stats_t*));
+			if(!global_stats->packet_id_vector) {
 				abort();
 			}
 
-			packet_mmt_stats = global_mmt_stats->packet_id_vector[global_mmt_stats->packet_id_n++] = calloc(1, sizeof(packet_id_mmt_stats_t));
+			packet_mmt_stats = global_stats->packet_id_vector[global_stats->packet_id_n++] = calloc(1, sizeof(packet_id_mmt_stats_t));
 			if(!packet_mmt_stats) {
 				abort();
 			}
 
 			//sort after realloc
-		    qsort((void**)global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, sizeof(packet_id_mmt_stats_t**), comparator_packet_id_mmt_stats_t);
+		    qsort((void**)global_stats->packet_id_vector, global_stats->packet_id_n, sizeof(packet_id_mmt_stats_t**), comparator_packet_id_mmt_stats_t);
 
-		    __INFO(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_mmt_stats->packet_id_n, packet_id);
+		    __INFO(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_stats->packet_id_n, packet_id);
 
 		} else {
-			global_mmt_stats->packet_id_n = 1;
-			global_mmt_stats->packet_id_vector = calloc(1, sizeof(packet_id_mmt_stats_t*));
-			global_mmt_stats->packet_id_vector[0] = calloc(1, sizeof(packet_id_mmt_stats_t));
+			global_stats->packet_id_n = 1;
+			global_stats->packet_id_vector = calloc(1, sizeof(packet_id_mmt_stats_t*));
+			global_stats->packet_id_vector[0] = calloc(1, sizeof(packet_id_mmt_stats_t));
 
-			if(!global_mmt_stats->packet_id_vector) {
+			if(!global_stats->packet_id_vector) {
 				abort();
 			}
 
-			packet_mmt_stats = global_mmt_stats->packet_id_vector[0];
+			packet_mmt_stats = global_stats->packet_id_vector[0];
 			__INFO("*calloc %p for %u", packet_mmt_stats, packet_id);
 		}
 		packet_mmt_stats->ip = ip;
@@ -312,36 +385,39 @@ void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_pay
 		//assign our signalling stats here
 		packet_mmt_stats->signalling_stats->signalling_messages_total++;
 	}
-	global_mmt_stats->packet_id_delta = packet_mmt_stats;
+	global_stats->packet_id_delta = packet_mmt_stats;
 }
 
 
 int DUMP_COUNTER=0;
 
-void dump_global_mmt_stats(){
+void dump_global_stats(){
 	bool has_output = false;
 
 	if(DUMP_COUNTER++%1000 == 0) {
 		__INFO("-----------------");
-		__INFO(" Global MMT Stats: Runtime: ");
+		__INFO(" Global ATSC 3.0 Stats: Runtime: ");
 		__INFO("-----------------");
-		__INFO(" lls_packet_counter_recv: %u", 			global_mmt_stats->lls_packet_counter_recv);
+		__INFO(" lls_packet_counter_recv: %u", 			global_stats->lls_packet_counter_recv);
 
-		__INFO(" mmtp_counter_recv: %u", 				global_mmt_stats->mmtp_counter_recv);
-		__INFO(" packet_counter_mpu: %u", 				global_mmt_stats->packet_counter_mpu);
-		__INFO(" packet_counter_signaling: %u",			global_mmt_stats->packet_counter_signaling);
+		__INFO(" mmtp_counter_recv: %u", 				global_stats->mmtp_counter_recv);
+		__INFO(" packet_counter_mpu: %u", 				global_stats->packet_counter_mpu);
+		__INFO(" packet_counter_signaling: %u",			global_stats->packet_counter_signaling);
 
-		__INFO(" lls_parsed_success_counter: %u", 		global_mmt_stats->lls_parsed_success_counter);
-		__INFO(" lls_parsed_failed_counter: %u",		global_mmt_stats->lls_parsed_failed_counter);
+		__INFO(" lls_parsed_success_counter: %u", 		global_stats->lls_parsed_success_counter);
+		__INFO(" lls_parsed_slt_update: %u", 			global_stats->lls_parsed_slt_update);
+
+		__INFO(" lls_parsed_failed_counter: %u",		global_stats->lls_parsed_failed_counter);
 		__INFO(" -----------------");
-		//dump lls
-		if(global_mmt_stats->lls_table) {
-			lls_dump_instance_table(global_mmt_stats->lls_table);
+
+		//dump lls_slt
+		if(global_stats->lls_table_slt) {
+			lls_dump_instance_table(global_stats->lls_table_slt);
 			__INFO(" -----------------");
 		}
 
-		for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
-			packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
+		for(int i=0; i < global_stats->packet_id_n; i++ ) {
+			packet_id_mmt_stats_t* packet_mmt_stats = global_stats->packet_id_vector[i];
 			double computed_flow_packet_loss = 0;
 			if(packet_mmt_stats->packet_sequence_number_total && packet_mmt_stats->packet_sequence_number_missing) {
 				computed_flow_packet_loss = 100.0* (packet_mmt_stats->packet_sequence_number_total / packet_mmt_stats->packet_sequence_number_missing);
@@ -373,8 +449,8 @@ void dump_global_mmt_stats(){
 	}
 
 	//check for any flow derivations
-	if(global_mmt_stats->packet_id_delta) {
-		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_delta;
+	if(global_stats->packet_id_delta) {
+		packet_id_mmt_stats_t* packet_mmt_stats = global_stats->packet_id_delta;
 		if(packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last &&
 				(packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last != packet_mmt_stats->mpu_stats_timed->mpu_sequence_number && packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter_last != 0)) {
 
@@ -396,7 +472,7 @@ void dump_global_mmt_stats(){
 	}
 	//process any gaps or deltas
 
-	global_mmt_stats->packet_id_delta = NULL;
+	global_stats->packet_id_delta = NULL;
 
 
 
@@ -609,32 +685,70 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	//drop mdNS
 	if(udp_packet->dst_ip_addr == 3758096635 && udp_packet->dst_port == 5353) goto cleanup;
 
+
+
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
-		global_mmt_stats->lls_packet_counter_recv++;
+		global_stats->lls_packet_counter_recv++;
 
 		//process as lls
 		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
 		if(lls) {
-			global_mmt_stats->lls_parsed_success_counter++;
-			if(global_mmt_stats->lls_table) {
-				lls_table_free(global_mmt_stats->lls_table);
+			global_stats->lls_parsed_success_counter++;
+			if(lls->lls_table_id == SLT) {
+				//if we have a lls_slt table, and the group is the same but its a new vewsion, reprocess
+				if(global_stats->lls_table_slt && global_stats->lls_table_slt->lls_group_id == lls->lls_group_id &&
+					global_stats->lls_table_slt->lls_table_version != lls->lls_table_version) {
+					int retval = 0;
+					retval = process_lls_table_slt_update(lls);
+
+					if(!retval) {
+						__INFO("lls_table_slt_update -- complete");
+					} else {
+						global_stats->lls_parsed_failed_counter++;
+						__ERROR("unable to parse LLS table");
+						goto cleanup;
+					}
+				}
 			}
-			global_mmt_stats->lls_table = lls;
-		} else {
-			global_mmt_stats->lls_parsed_failed_counter++;
-			__ERROR("unable to parse LLS table");
 		}
 
-		dump_global_mmt_stats();
+		dump_global_stats();
 
+	} else if(global_stats->alc_session && global_stats->sls_source_ip_address == udp_packet->src_ip_addr &&
+				global_stats->sls_destination_ip_address == udp_packet->dst_ip_addr && global_stats->sls_destination_udp_port == udp_packet->dst_port) {
+		global_stats->alc_packets_recv++;
+
+		if(global_stats->alc_session) {
+			//re-inject our alc session
+			alc_packet_t* alc_packet = NULL;
+			alc_channel_t ch;
+			ch.s = global_stats->alc_session;
+
+			//process ALC streams
+			int retval = alc_rx_analyze_packet((char*)udp_packet->data, udp_packet->data_length, &ch, &alc_packet);
+			if(!retval) {
+				global_stats->alc_packets_decoded++;
+				dumpAlcPacketToObect(alc_packet);
+
+			} else {
+				__ERROR("Error in ALC decode: %d", retval);
+				global_stats->alc_decode_errors++;
+				goto cleanup;
+			}
+		} else {
+			__WARN("Have matching ALC session information but ALC client is not active!");
+			goto cleanup;
+		}
 	} else if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
-		global_mmt_stats->mmtp_counter_recv++;
+		//Process MMT
+
+		global_stats->mmtp_counter_recv++;
 
 		__DEBUG("data len: %d", udp_packet->data_length)
 		mmtp_payload_fragments_union_t* mmtp_payload = mmtp_packet_parse(mmtp_sub_flow_vector, udp_packet->data, udp_packet->data_length);
 
 		if(!mmtp_payload) {
-			global_mmt_stats->mmtp_counter_parse_error++;
+			global_stats->mmtp_counter_parse_error++;
 			__ERROR("mmtp_packet_parse: raw packet ptr is null, parsing failed for flow: %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu",
 					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
 					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
@@ -676,7 +790,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		packet_mmt_stats_populate(packet_mmt_stats, mmtp_payload);
 
 		if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
-			global_mmt_stats->packet_counter_mpu++;
+			global_stats->packet_counter_mpu++;
 
 			if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
 				//timed
@@ -689,14 +803,14 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
 
 			signaling_message_dump(mmtp_payload);
-			global_mmt_stats->packet_counter_signaling++;
+			global_stats->packet_counter_signaling++;
 
 		} else {
 			_MMTP_WARN("mmtp_packet_parse: unknown payload type of 0x%x", mmtp_payload->mmtp_packet_header.mmtp_payload_type);
 			goto cleanup;
 		}
 
-		dump_global_mmt_stats();
+		dump_global_stats();
 
 	}
 
@@ -778,7 +892,7 @@ int main(int argc,char **argv) {
     mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
     mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
-    global_mmt_stats = calloc(1, sizeof(*global_mmt_stats));
+    global_stats = calloc(1, sizeof(*global_stats));
 
     mkdir("mpu", 0777);
 

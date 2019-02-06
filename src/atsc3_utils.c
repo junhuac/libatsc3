@@ -207,6 +207,35 @@ void freesafe(void* tofree) {
 	}
 }
 
+void freeclean(void** tofree) {
+	if(*tofree) {
+		free(*tofree);
+		tofree = NULL;
+	}
+}
 
 
+uint32_t parseIpAddressIntoIntval(char* dst_ip) {
+	uint32_t ipAddressAsInteger = 0;
 
+	char* pch = strtok (dst_ip,".");
+	int offset = 24;
+
+	while (pch != NULL && offset>=0) {
+		uint8_t octet = atoi(pch);
+		ipAddressAsInteger |= octet << offset;
+		offset-=8;
+		pch = strtok (NULL, " ,.-");
+	}
+
+	return ipAddressAsInteger;
+}
+
+uint16_t parsePortIntoIntval(char* dst_port) {
+
+	int dst_port_filter_int = atoi(dst_port);
+	uint16_t dst_port_filter = 0;
+	dst_port_filter |= dst_port_filter_int & 0xFFFF;
+
+	return dst_port_filter;
+}

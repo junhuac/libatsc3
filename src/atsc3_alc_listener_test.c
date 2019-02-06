@@ -37,7 +37,7 @@ int PACKET_COUNTER=0;
 #include <string.h>
 #include <sys/stat.h>
 #include "atsc3_lls.h"
-
+#include "atsc3_utils.h"
 #include "alc_rx.h"
 #include "alc_channel.h"
 
@@ -318,21 +318,13 @@ int main(int argc,char **argv) {
 		dst_ip = argv[2];
 		dst_port = argv[3];
 
-		dst_ip_addr_filter = calloc(1, sizeof(uint32_t));
-		char* pch = strtok (dst_ip,".");
-		int offset = 24;
-		while (pch != NULL && offset>=0) {
-			uint8_t octet = atoi(pch);
-			*dst_ip_addr_filter |= octet << offset;
-			offset-=8;
-			pch = strtok (NULL, " ,.-");
-		  }
-
-		dst_port_filter_int = atoi(dst_port);
-		dst_ip_port_filter = calloc(1, sizeof(uint16_t));
-		*dst_ip_port_filter |= dst_port_filter_int & 0xFFFF;
+		uint32_t dst_ip_int;
+		dst_ip_int = parseIpAddressIntoIntval(dst_ip);
+		dst_ip_addr_filter = &dst_ip_int;
 
 		__INFO("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
+		uint16_t dst_port_int = parsePortIntoIntval(dst_port);
+		dst_ip_port_filter = &dst_port_int;
 
     } else {
     	println("%s - a udp mulitcast listener test harness for atsc3 ALC ROUTE flows", argv[0]);

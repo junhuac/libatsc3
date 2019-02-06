@@ -638,21 +638,21 @@ void lls_dump_instance_table(lls_table_t* base_table) {
 
 		for(int i=0l; i < base_table->slt_table.service_entry_n; i++) {
 			service_t* service = base_table->slt_table.service_entry[i];
-			_LLS_INFO(" ---------------------------");
-			_LLS_INFO("  service_id                : %d", service->service_id);
-			_LLS_INFO("  global_service_id         : %s", service->global_service_id);
-			_LLS_INFO("  major_channel_no          : %d", service->major_channel_no);
-			_LLS_INFO("  minor_channel_no          : %d", service->minor_channel_no);
-			_LLS_INFO("  service_category          : %d", service->service_category);
-			_LLS_INFO("  short_service_name        : %s", service->short_service_name);
-			_LLS_INFO("  slt_svc_seq_num           : %d", service->slt_svc_seq_num);
-			_LLS_INFO(" ---------------------------");
-			_LLS_INFO(" broadcast_svc_signaling");
-			_LLS_INFO(" ---------------------------");
-			_LLS_INFO("  sls_protocol              : %d", service->broadcast_svc_signaling.sls_protocol);
-			_LLS_INFO("  sls_destination_ip_address: %s", service->broadcast_svc_signaling.sls_destination_ip_address);
-			_LLS_INFO("  sls_destination_udp_port  : %s", service->broadcast_svc_signaling.sls_destination_udp_port);
-			_LLS_INFO("  sls_source_ip_address     : %s", service->broadcast_svc_signaling.sls_source_ip_address);
+			_LLS_INFO(" -----------------------------");
+			_LLS_INFO("  service_id                  : %d", service->service_id);
+			_LLS_INFO("  global_service_id           : %s", service->global_service_id);
+			_LLS_INFO("  major_channel_no            : %d", service->major_channel_no);
+			_LLS_INFO("  minor_channel_no            : %d", service->minor_channel_no);
+			_LLS_INFO("  service_category            : %d", service->service_category);
+			_LLS_INFO("  short_service_name          : %s", service->short_service_name);
+			_LLS_INFO("  slt_svc_seq_num             : %d", service->slt_svc_seq_num);
+			_LLS_INFO(" -----------------------------");
+			_LLS_INFO("  broadcast_svc_signaling");
+			_LLS_INFO(" -----------------------------");
+			_LLS_INFO("    sls_protocol              : %d", service->broadcast_svc_signaling.sls_protocol);
+			_LLS_INFO("    sls_destination_ip_address: %s", service->broadcast_svc_signaling.sls_destination_ip_address);
+			_LLS_INFO("    sls_destination_udp_port  : %s", service->broadcast_svc_signaling.sls_destination_udp_port);
+			_LLS_INFO("    sls_source_ip_address     : %s", service->broadcast_svc_signaling.sls_source_ip_address);
 
 		}
 		_LLS_DEBUGN("--------------------------");
