@@ -41,6 +41,9 @@
 #endif
 
 
+#define LLS_DST_ADDR 3758102332
+#define LLS_DST_PORT 4937
+
 /***
  * From < A/331 2017 - Signaling Delivery Sync > https://www.atsc.org/wp-content/uploads/2017/12/A331-2017-Signaling-Deivery-Sync-FEC-3.pdf
  * LLS shall be transported in IP packets with address:

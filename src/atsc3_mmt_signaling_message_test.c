@@ -53,15 +53,6 @@ int test_mmt_signaling_message_mpu_timestamp_descriptor_table(char* base64_paylo
 
 	signaling_message_dump(mmtp_payload_fragments);
 
-
-
-//	lls_table_t* lls = lls_table_create(binary_payload, binary_payload_size);
-//	if(lls) {
-//		lls_dump_instance_table(lls);
-//	} else {
-//		_LLS_ERROR("test_lls_create_SystemTime_table() - lls_table_t* is NULL");
-//	}
-//
 	return 0;
 }
 

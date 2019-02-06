@@ -62,11 +62,8 @@ void test_parse_xml(char* xml) {
 	struct xml_node *node = xml_node_child(root, 0); //"SLT");
 	printf("SLT node: %p", node);
 
-
-
 	struct xml_string* node_name = xml_node_name(node);
 	dump_xml_string(node_name);
-
 
 	int child_size = xml_node_children(node);
 	for(int i=0; i < child_size; i++) {
@@ -81,38 +78,6 @@ void test_parse_xml(char* xml) {
 			dump_xml_string(bss_row_name);
 		}
 	}
-
-
-
-		//		size_t i = 0; for (; i < xml_node_children(node); ++i) {
-		//			struct xml_node* child = xml_node_child(current, i);
-		//
-		//			if (xml_string_equals(xml_node_name(child), &cn)) {
-		//				if (!next) {
-		//					next = child;
-		/* Say Hello World :-)
-//		 */
-//		struct xml_node* root_slt = xml_node_child(root, 0);
-//		struct xml_string* hello = xml_node_name(root_slt);
-//		struct xml_string* world = xml_node_content(root_hello);
-//
-//		/* Watch out: `xml_string_copy' will not 0-terminate your buffers! (but
-//		 *     `calloc' will :-)
-//		 */
-//		uint8_t* hello_0 = calloc(xml_string_length(hello) + 1, sizeof(uint8_t));
-//		uint8_t* world_0 = calloc(xml_string_length(world) + 1, sizeof(uint8_t));
-//		xml_string_copy(hello, hello_0, xml_string_length(hello));
-//		xml_string_copy(world, world_0, xml_string_length(world));
-//
-//
-//		size_t i = 0; for (; i < xml_node_children(node); ++i) {
-//			struct xml_node* child = xml_node_child(current, i);
-//
-//			if (xml_string_equals(xml_node_name(child), &cn)) {
-//				if (!next) {
-//					next = child;
-
-
 }
 
 #endif

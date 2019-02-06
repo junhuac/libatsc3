@@ -24,16 +24,9 @@
 */
 
 
-#define MMT_DST_ADDR 4026468866
-#define MMT_DST_PORT 51002
-
-
 //#define _ENABLE_TRACE 1
 //#define _SHOW_PACKET_FLOW 1
 int PACKET_COUNTER=0;
-
-#define LLS_DST_ADDR 3758102332
-#define LLS_DST_PORT 4937
 
 #include <pcap.h>
 #include <stdio.h>
@@ -54,7 +47,6 @@ int PACKET_COUNTER=0;
 extern int _MPU_DEBUG_ENABLED;
 extern int _MMTP_DEBUG_ENABLED;
 extern int _LLS_DEBUG_ENABLED;
-
 
 #define println(...) printf(__VA_ARGS__);printf("\n")
 
@@ -96,6 +88,11 @@ void __trace_dump_ip_header_info(u_char* ip_header) {
 #define __TRACE(...)
 #endif
 
+//commandline stream filtering
+
+uint32_t* dst_ip_addr_filter = NULL;
+uint16_t* dst_ip_port_filter = NULL;
+
 
 typedef struct udp_packet {
 	uint32_t		src_ip_addr;
@@ -109,12 +106,6 @@ typedef struct udp_packet {
 
 } udp_packet_t;
 
-
-//239.255.10.2:51002
-uint32_t  dst_ip = MMT_DST_ADDR;
-uint16_t  dst_port = MMT_DST_PORT;
-uint32_t* dst_ip_addr_filter = &dst_ip;
-uint16_t* dst_ip_port_filter = &dst_port;
 
 typedef struct packet_id_mpu_stats {
 	uint32_t mpu_sequence_number;
@@ -216,21 +207,20 @@ packet_id_mmt_stats_t* find_packet_id(uint32_t packet_id) {
 ==83453==
 ==83453== LEAK SUMMARY:
  */
+
 packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 	packet_id_mmt_stats_t* packet_mmt_stats = find_packet_id(packet_id);
 	if(!packet_mmt_stats) {
 		if(global_mmt_stats->packet_id_n && global_mmt_stats->packet_id_vector) {
 
-			__INFO("*before realloc to %p, %i, adding %u", global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, packet_id);
+			__TRACE(" *before realloc to %p, %i, adding %u", global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, packet_id);
 
 			global_mmt_stats->packet_id_vector = realloc(global_mmt_stats->packet_id_vector, (global_mmt_stats->packet_id_n + 1) * sizeof(packet_id_mmt_stats_t*));
 			if(!global_mmt_stats->packet_id_vector) {
 				abort();
 			}
 
-			//global_mmt_stats->packet_id_vector[global_mmt_stats->packet_id_n++]
 			packet_mmt_stats = global_mmt_stats->packet_id_vector[global_mmt_stats->packet_id_n++] = calloc(1, sizeof(packet_id_mmt_stats_t));
-
 			if(!packet_mmt_stats) {
 				abort();
 			}
@@ -238,7 +228,7 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 			//sort after realloc
 		    qsort((void**)global_mmt_stats->packet_id_vector, global_mmt_stats->packet_id_n, sizeof(packet_id_mmt_stats_t**), comparator_packet_id_mmt_stats_t);
 
-			__INFO("*after realloc to %p, %i, adding %u", packet_mmt_stats, global_mmt_stats->packet_id_n, packet_id);
+		    __TRACE(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_mmt_stats->packet_id_n, packet_id);
 
 		} else {
 			global_mmt_stats->packet_id_n = 1;
@@ -250,13 +240,12 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t packet_id) {
 			}
 
 			packet_mmt_stats = global_mmt_stats->packet_id_vector[0];
-			__INFO("*calloc %p for %u", packet_mmt_stats, packet_id);
+			__TRACE("*calloc %p for %u", packet_mmt_stats, packet_id);
 		}
 		packet_mmt_stats->packet_id = packet_id;
 		packet_mmt_stats->mpu_stats_timed = 	calloc(1, sizeof(packet_id_mpu_stats_timed_t));
 		packet_mmt_stats->mpu_stats_nontimed = 	calloc(1, sizeof(packet_id_mpu_stats_nontimed_t));
 		packet_mmt_stats->signalling_stats = 	calloc(1, sizeof(packet_id_signalling_stats_t));
-
 	}
 
 	return packet_mmt_stats;
@@ -595,7 +584,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 		dump_global_mmt_stats();
 
-	} else 	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
+	} else if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
 		global_mmt_stats->packet_counter_recv++;
 
 		__DEBUG("data len: %d", udp_packet->data_length)
@@ -618,7 +607,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		if(mmtp_payload->mmtp_packet_header.packet_counter != global_mmt_stats->packet_counter_last_value + 1 && global_mmt_stats->packet_counter_last_value) {
 
 			global_mmt_stats->packet_counter_last_gap_gap = mmtp_payload->mmtp_packet_header.packet_counter - global_mmt_stats->packet_counter_last_value;
-			__WARN("---Missing packets from %u to %u (total: %u)  ", global_mmt_stats->packet_counter_last_value, mmtp_payload->mmtp_packet_header.packet_counter, global_mmt_stats->packet_counter_last_gap_gap);
+			__WARN("  Missing packets from %u to %u (total: %u)  ", global_mmt_stats->packet_counter_last_value, mmtp_payload->mmtp_packet_header.packet_counter, global_mmt_stats->packet_counter_last_gap_gap);
 
 			global_mmt_stats->packet_counter_missing += global_mmt_stats->packet_counter_last_gap_gap;
 		}
@@ -684,6 +673,7 @@ int main(int argc,char **argv) {
 
     char *dst_ip = NULL;
     char *dst_port = NULL;
+    int dst_port_filter_int;
 
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t* descr;
@@ -694,13 +684,28 @@ int main(int argc,char **argv) {
     //listen to all flows
     if(argc == 2) {
     	dev = argv[1];
-	    __DEBUG("listening on dev: %s", dev);
+    	__INFO("listening on dev: %s", dev);
     } else if(argc==4) {
-    	//listen
+    	//listen to a selected flow
     	dev = argv[1];
+    	dst_ip = argv[2];
+    	dst_port = argv[3];
 
-    	//todo
-    	__DEBUG("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
+    	dst_ip_addr_filter = calloc(1, sizeof(uint32_t));
+    	char* pch = strtok (dst_ip,".");
+    	int offset = 24;
+    	while (pch != NULL && offset>=0) {
+    		uint8_t octet = atoi(pch);
+    		*dst_ip_addr_filter |= octet << offset;
+    		offset-=8;
+    	    pch = strtok (NULL, " ,.-");
+    	  }
+
+    	dst_port_filter_int = atoi(dst_port);
+    	dst_ip_port_filter = calloc(1, sizeof(uint16_t));
+    	*dst_ip_port_filter |= dst_port_filter_int & 0xFFFF;
+
+    	__INFO("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
 
     } else {
     	println("%s - a udp mulitcast listener test harness for atsc3 mmt messages", argv[0]);

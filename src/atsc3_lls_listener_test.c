@@ -277,17 +277,3 @@ int main(int argc,char **argv) {
     return 0;
 }
 
-
-
-/* write a packet
-//define a new packet and for each position set its values
-u_char packet[86];
-
-
-// Send down the packet
-if (pcap_sendpacket(descr, packet, 86) != 0) {
-
-    fprintf(stderr,"Error sending the packet: %s", pcap_geterr(descr));
-    return 2;
-}
-*/

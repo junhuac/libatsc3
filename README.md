@@ -4,6 +4,18 @@ ATSC 3.0 NGBP Open Source Library - Parse LMT, LLS and other signaling, object d
 
 Updates:
 
+## 2019-02-05 - src/
+
+Added atsc3_listener_metrics_test to include LLS and MMT counters, including missing MFU's and selective filtering via cli wiht host and port options.
+* To build, run make
+* To run ./atsc3_listener_metrics_test
+ ./atsc3_listener_metrics_test - a udp mulitcast listener test harness for atsc3 mmt messages
+ ---
+ args: dev (dst_ip) (dst_port)
+  dev: device to listen for udp multicast, default listen to 0.0.0.0:0
+  (dst_ip): optional, filter to specific ip address
+  (dst_port): optional, filter to specific port
+
 ## 2019-01-27 - src/
 
 Refactored out POC VLC plugin into standalone mmt sample listener.

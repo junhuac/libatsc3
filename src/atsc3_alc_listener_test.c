@@ -25,9 +25,6 @@
 #define _SHOW_PACKET_FLOW 1
 int PACKET_COUNTER=0;
 
-#define LLS_DST_ADDR 3758102332
-#define LLS_DST_PORT 4937
-
 #include <pcap.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +36,8 @@ int PACKET_COUNTER=0;
 #include <netinet/ip.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "atsc3_lls.h"
+
 #include "alc_rx.h"
 #include "alc_channel.h"
 
@@ -194,7 +193,17 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 
 
 	//dispatch for LLS extraction and dump
+	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
+		//process as lls
+		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
+		if(lls) {
+			lls_dump_instance_table(lls);
+			lls_table_free(lls);
+		} else {
+			__ERROR("unable to parse LLS table");
+		}
 
+	} else if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
 
 	#ifdef _SHOW_PACKET_FLOW
 		__INFO("--- Packet size : %-10d | Counter: %-8d", udp_packet->data_length, PACKET_COUNTER++);
@@ -203,9 +212,6 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		__INFO("    Dst. Addr   : %d.%d.%d.%d\t(%-10u)\t", ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr);
 		__INFO("    Dst. Port   : %-5hu \t", (uint16_t)((udp_header[2] << 8) + udp_header[3]));
 	#endif
-
-	if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
-
 		__INFO("data len: %d", udp_packet->data_length);
 
 		if(alc_session != NULL) {
@@ -294,6 +300,7 @@ int main(int argc,char **argv) {
 
     char *dst_ip = NULL;
     char *dst_port = NULL;
+    int dst_port_filter_int;
 
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t* descr;
@@ -306,10 +313,26 @@ int main(int argc,char **argv) {
     	dev = argv[1];
 	    __DEBUG("listening on dev: %s", dev);
     } else if(argc==4) {
-    	//listen
-        __DEBUG("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
-        char delim[] = ".";
-        char* ptr = NULL;
+    	//listen to a selected flow
+		dev = argv[1];
+		dst_ip = argv[2];
+		dst_port = argv[3];
+
+		dst_ip_addr_filter = calloc(1, sizeof(uint32_t));
+		char* pch = strtok (dst_ip,".");
+		int offset = 24;
+		while (pch != NULL && offset>=0) {
+			uint8_t octet = atoi(pch);
+			*dst_ip_addr_filter |= octet << offset;
+			offset-=8;
+			pch = strtok (NULL, " ,.-");
+		  }
+
+		dst_port_filter_int = atoi(dst_port);
+		dst_ip_port_filter = calloc(1, sizeof(uint16_t));
+		*dst_ip_port_filter |= dst_port_filter_int & 0xFFFF;
+
+		__INFO("listening on dev: %s, dst_ip: %s, dst_port: %s", dev, dst_ip, dst_port);
 
     } else {
     	println("%s - a udp mulitcast listener test harness for atsc3 ALC ROUTE flows", argv[0]);
