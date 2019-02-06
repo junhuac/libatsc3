@@ -279,6 +279,7 @@ int process_lls_table_slt_update(lls_table_t* lls) {
 
 				global_stats->sls_destination_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_destination_ip_address);
 				global_stats->sls_destination_udp_port = parsePortIntoIntval(service->broadcast_svc_signaling.sls_destination_udp_port);
+				global_stats->sls_source_ip_address = parsePortIntoIntval(service->broadcast_svc_signaling.sls_source_ip_address);
 
 				global_stats->alc_session = open_alc_session(global_stats->alc_arguments);
 
