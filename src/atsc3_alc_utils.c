@@ -94,13 +94,14 @@ static int __INT_LOOP_COUNT=0;
 #define __DEBUGN(...)
 #endif
 
-void dumpAlcPacketToObect(alc_packet_t* alc_packet) {
+int dumpAlcPacketToObect(alc_packet_t* alc_packet) {
 
+	int bytesWritten = 0;
     mkdir("route", 0777);
 
 	char *myFilePathName = calloc(128, sizeof(char));
 	int filename_pos = 0;
-	__INFO("have tsi: %s, toi: %s, sbn: %x, esi: %x len: %d",
+	__DEBUG("have tsi: %s, toi: %s, sbn: %x, esi: %x len: %d",
 			alc_packet->tsi, alc_packet->toi,
 			alc_packet->esi, alc_packet->sbn, alc_packet->alc_len);
 
@@ -115,10 +116,10 @@ void dumpAlcPacketToObect(alc_packet_t* alc_packet) {
 		snprintf(myFilePathName,127, "route/%s-%s", alc_packet->tsi, alc_packet->toi);
 
 		if(alc_packet->esi>0) {
-			__INFO("alc_rx.c - dumping to file in append mode: %s, esi: %d", myFilePathName, alc_packet->esi);
+			__DEBUG("alc_rx.c - dumping to file in append mode: %s, esi: %d", myFilePathName, alc_packet->esi);
 			f = fopen(myFilePathName, "a");
 		} else {
-			__INFO("alc_rx.c - dumping to file in write mode: %s, esi: %d", myFilePathName, alc_packet->esi);
+			__DEBUG("alc_rx.c - dumping to file in write mode: %s, esi: %d", myFilePathName, alc_packet->esi);
 			//open as write
 			f = fopen(myFilePathName, "w");
 		}
@@ -131,15 +132,19 @@ void dumpAlcPacketToObect(alc_packet_t* alc_packet) {
 
 	for(int i=0; i < alc_packet->alc_len; i++) {
 		fputc(alc_packet->alc_payload[i], f);
+		bytesWritten++;
 	}
-	fclose(f);
-	__INFO("alc_rx.c - dumping to file complete: %s", myFilePathName);
-	free(myFilePathName);
 
+	fclose(f);
+
+	__DEBUG("alc_rx.c - dumping to file complete: %s", myFilePathName);
+	free(myFilePathName);
 
 	cleanup:
 		if(alc_packet) {
 			alc_packet_free(alc_packet);
 
-	}
+		}
+
+	return bytesWritten;
 }

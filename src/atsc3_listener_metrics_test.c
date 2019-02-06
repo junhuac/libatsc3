@@ -68,6 +68,7 @@ int PACKET_COUNTER=0;
 #include <netinet/ip.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include "atsc3_lls.h"
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
@@ -86,13 +87,13 @@ extern int _LLS_DEBUG_ENABLED;
 #define __PRINTLN(...) printf(__VA_ARGS__);printf("\n")
 #define __PRINTF(...)  printf(__VA_ARGS__);
 
-#define __ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
-#define __WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
-#define __INFO(...)    printf("%s:%d:INFO:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
+#define __ERROR(...)   printf("%s:%d:ERROR:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __WARN(...)    printf("%s:%d:WARN:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __INFO(...)    printf("%s:%d:INFO:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
 
 #ifdef _ENABLE_DEBUG
-#define __DEBUG(...)   printf("%s:%d:DEBUG:",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
-#define __DEBUGF(...)  printf("%s:%d:DEBUG:",__FILE__,__LINE__);__PRINTF(__VA_ARGS__);
+#define __DEBUG(...)   printf("%s:%d:DEBUG:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __DEBUGF(...)  printf("%s:%d:DEBUG:","listener",__LINE__);__PRINTF(__VA_ARGS__);
 #define __DEBUGA(...) 	__PRINTF(__VA_ARGS__);
 #define __DEBUGN(...)  __PRINTLN(__VA_ARGS__);
 #else
@@ -233,6 +234,10 @@ typedef struct global_mmt_stats {
 
 	uint32_t filtered_ipv4_packet_count;
 
+	struct timeval program_start_timeval;
+
+
+
 
 } global_mmt_stats_t;
 
@@ -346,7 +351,7 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t ip, uint16_t port, uint32_
 	if(!packet_mmt_stats) {
 		if(global_stats->packet_id_n && global_stats->packet_id_vector) {
 
-			__INFO(" *before realloc to %p, %i, adding %u", global_stats->packet_id_vector, global_stats->packet_id_n, packet_id);
+			__TRACE(" *before realloc to %p, %i, adding %u", global_stats->packet_id_vector, global_stats->packet_id_n, packet_id);
 
 			global_stats->packet_id_vector = realloc(global_stats->packet_id_vector, (global_stats->packet_id_n + 1) * sizeof(packet_id_mmt_stats_t*));
 			if(!global_stats->packet_id_vector) {
@@ -361,7 +366,7 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t ip, uint16_t port, uint32_
 			//sort after realloc
 		    qsort((void**)global_stats->packet_id_vector, global_stats->packet_id_n, sizeof(packet_id_mmt_stats_t**), comparator_packet_id_mmt_stats_t);
 
-		    __INFO(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_stats->packet_id_n, packet_id);
+		    __TRACE(" *after realloc to %p, %i, adding %u", packet_mmt_stats, global_stats->packet_id_n, packet_id);
 
 		} else {
 			global_stats->packet_id_n = 1;
@@ -373,7 +378,7 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t ip, uint16_t port, uint32_
 			}
 
 			packet_mmt_stats = global_stats->packet_id_vector[0];
-			__INFO("*calloc %p for %u", packet_mmt_stats, packet_id);
+			__TRACE("*calloc %p for %u", packet_mmt_stats, packet_id);
 		}
 		packet_mmt_stats->ip = ip;
 		packet_mmt_stats->port = port;
@@ -435,13 +440,19 @@ void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_pay
 
 
 int DUMP_COUNTER=0;
+int DUMP_COUNTER_2=0;
 
 void dump_global_stats(){
 	bool has_output = false;
 
-	if(DUMP_COUNTER++%1000 == 0) {
+	if(DUMP_COUNTER++%500 == 0) {
+		struct timeval tNow;
+		gettimeofday(&tNow, NULL);
+
+		long long elapsedDuration = timediff(tNow, global_stats->program_start_timeval);
+
 		__INFO("-----------------");
-		__INFO(" Global ATSC 3.0 Stats: Runtime: ");
+		__INFO(" Global ATSC 3.0 Stats: Runtime: %lli", elapsedDuration);
 		__INFO("-----------------");
 		__INFO(" lls_packet_counter_recv: %u", 			global_stats->lls_packet_counter_recv);
 
@@ -454,9 +465,9 @@ void dump_global_stats(){
 		__INFO(" lls_parsed_slt_update: %u", 			global_stats->lls_parsed_slt_update);
 		__INFO(" lls_parsed_failed_counter: %u",		global_stats->lls_parsed_failed_counter);
 		__INFO(" -----------------");
-		__INFO(" alc_packets_recv: %u",		global_stats->alc_packets_recv);
-		__INFO(" alc_packets_decoded: %u",		global_stats->alc_packets_decoded);
-		__INFO(" alc_decode_errors: %u",		global_stats->alc_decode_errors);
+		__INFO(" alc_packets_recv: %u",					global_stats->alc_packets_recv);
+		__INFO(" alc_packets_decoded: %u",				global_stats->alc_packets_decoded);
+		__INFO(" alc_decode_errors: %u",				global_stats->alc_decode_errors);
 		__INFO(" -----------------");
 
 
@@ -464,6 +475,7 @@ void dump_global_stats(){
 
 
 		__INFO(" -----------------");
+
 
 		//dump lls_slt
 		if(global_stats->lls_table_slt) {
@@ -521,6 +533,7 @@ void dump_global_stats(){
 			has_output=true;
 		}
 	}
+
 
 	if(has_output) {
 		__INFO("");
@@ -786,12 +799,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		goto cleanup;
 	}
 
-	if(global_stats->alc_session &&
-
-		(global_stats->sls_relax_source_ip_check || global_stats->sls_source_ip_address == udp_packet->src_ip_addr) &&
+	if(global_stats->alc_session &&	(global_stats->sls_relax_source_ip_check || global_stats->sls_source_ip_address == udp_packet->src_ip_addr) &&
 				global_stats->sls_destination_ip_address == udp_packet->dst_ip_addr && global_stats->sls_destination_udp_port == udp_packet->dst_port) {
 		global_stats->alc_packets_recv++;
-		__INFO("***ALC - Have matching ALC session information");
 
 		if(global_stats->alc_session) {
 			//re-inject our alc session
@@ -847,7 +857,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 			if(packet_mmt_stats->packet_sequence_number_last_gap > packet_mmt_stats->packet_sequence_number_max_gap) {
 				packet_mmt_stats->packet_sequence_number_max_gap = packet_mmt_stats->packet_sequence_number_last_gap;
 			}
-			__WARN("  flow:  %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu | tracked as %u.%u.%u.%u:%u, packet_id: %d, %d, Missing packets from %u to %u (total: %u)  ",
+			__WARN("  flow:  %d.%d.%d.%d:(%-10u):%-5hu \t ->  %d.%d.%d.%d\t(%-10u)\t:%-5hu | tracked as %u.%u.%u.%u:%u, packet_id: %d, %d, Missing packet sequence #s from %u to %u (total: %u)  ",
 					ip_header[12], ip_header[13], ip_header[14], ip_header[15], udp_packet->src_ip_addr,
 					(uint16_t)((udp_header[0] << 8) + udp_header[1]),
 					ip_header[16], ip_header[17], ip_header[18], ip_header[19], udp_packet->dst_ip_addr,
@@ -855,7 +865,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 					(packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port,
 					mmtp_payload->mmtp_packet_header.mmtp_packet_id, packet_mmt_stats->packet_id,
 					packet_mmt_stats->packet_sequence_number_last_value,
-					mmtp_payload->mmtp_packet_header.packet_counter,
+					mmtp_payload->mmtp_packet_header.packet_sequence_number,
 					packet_mmt_stats->packet_sequence_number_last_gap);
 
 			packet_mmt_stats->packet_sequence_number_missing += packet_mmt_stats->packet_sequence_number_last_gap;
@@ -914,7 +924,7 @@ int main(int argc,char **argv) {
 
 	_MPU_DEBUG_ENABLED = 0;
 	_MMTP_DEBUG_ENABLED = 0;
-	_LLS_DEBUG_ENABLED = 1;
+	_LLS_DEBUG_ENABLED = 0;
 
     char *dev;
 
@@ -964,11 +974,15 @@ int main(int argc,char **argv) {
     	println("");
     	exit(1);
     }
+
+
     mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
     mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
     global_stats = calloc(1, sizeof(*global_stats));
     global_stats->sls_relax_source_ip_check = true;
+    gettimeofday(&global_stats->program_start_timeval, 0);
+
     mkdir("mpu", 0777);
 
     pcap_lookupnet(dev, &netp, &maskp, errbuf);
@@ -997,16 +1011,3 @@ int main(int argc,char **argv) {
 }
 
 
-
-/* write a packet
-//define a new packet and for each position set its values
-u_char packet[86];
-
-
-// Send down the packet
-if (pcap_sendpacket(descr, packet, 86) != 0) {
-
-    fprintf(stderr,"Error sending the packet: %s", pcap_geterr(descr));
-    return 2;
-}
-*/

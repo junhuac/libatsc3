@@ -41,6 +41,7 @@
 #define MIN_ATSC3_MULTICAST_BLOCK (239 << 24 | 255 << 16)
 #define MAX_ATSC3_MULTICAST_BLOCK (239 << 24 | 255 << 16 | 255 << 8 | 255)
 
+long long timediff(struct timeval t1, struct timeval t0);
 
 #define __toip(packet_mmt_stats) (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
 //%u.%u.%u.%u:%u
