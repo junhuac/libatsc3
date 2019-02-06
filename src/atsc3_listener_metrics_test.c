@@ -248,6 +248,7 @@ void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_pay
 	packet_mmt_stats->packet_sequence_number = mmtp_payload->mmtp_packet_header.packet_sequence_number;
 	packet_mmt_stats->timestamp = mmtp_payload->mmtp_packet_header.mmtp_timestamp;
 
+	//mpu metadata
 	if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x0) {
 		//assign our timed mpu stats
 		if(mmtp_payload->mmtp_mpu_type_packet_header.mpu_timed_flag == 1) {
@@ -269,7 +270,7 @@ void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_pay
 			//assign our non-timed stats here
 			packet_mmt_stats->mpu_stats_nontimed->mpu_nontimed_total++;
 		}
-	} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x1) {
+	} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
 		//assign our signalling stats here
 		packet_mmt_stats->signalling_stats->signalling_messages_total++;
 	}
@@ -280,40 +281,47 @@ void packet_mmt_stats_populate(packet_id_mmt_stats_t* packet_mmt_stats, mmtp_pay
 int DUMP_COUNTER=0;
 
 void dump_global_mmt_stats(){
+	bool has_output = false;
+
 	if(DUMP_COUNTER++%1000 == 0) {
-		__INFO("global mmt stats:");
 		__INFO("-----------------");
-		__INFO("packet_counter_recv: %u", 				global_mmt_stats->packet_counter_recv);
-
-		__INFO("packet_counter_last_value: %u", 		global_mmt_stats->packet_counter_last_value);
-		__INFO("packet_counter_parse_error: %u", 		global_mmt_stats->packet_counter_parse_error);
-		__INFO("packet_counter_last_gap_gap: %u", 		global_mmt_stats->packet_counter_last_gap_gap);
-		__INFO("packet_counter_missing: %u", 			global_mmt_stats->packet_counter_missing);
-
-		__INFO("packet_counter_mpu: %u", 				global_mmt_stats->packet_counter_mpu);
-		__INFO("packet_counter_signaling: %u",			global_mmt_stats->packet_counter_signaling);
-
-		__INFO("lls_parsed_success_counter: %u", 		global_mmt_stats->lls_parsed_success_counter);
-		__INFO("lls_parsed_failed_counter: %u",			global_mmt_stats->lls_parsed_failed_counter);
+		__INFO("Global MMT Stats: Runtime: ");
 		__INFO("-----------------");
+		__INFO(" packet_counter_recv: %u", 				global_mmt_stats->packet_counter_recv);
+
+		__INFO(" packet_counter_last_value: %u", 		global_mmt_stats->packet_counter_last_value);
+		__INFO(" packet_counter_parse_error: %u", 		global_mmt_stats->packet_counter_parse_error);
+		__INFO(" packet_counter_last_gap_gap: %u", 		global_mmt_stats->packet_counter_last_gap_gap);
+		__INFO(" packet_counter_missing: %u", 			global_mmt_stats->packet_counter_missing);
+
+		__INFO(" packet_counter_mpu: %u", 				global_mmt_stats->packet_counter_mpu);
+		__INFO(" packet_counter_signaling: %u",			global_mmt_stats->packet_counter_signaling);
+
+		__INFO(" lls_parsed_success_counter: %u", 		global_mmt_stats->lls_parsed_success_counter);
+		__INFO(" lls_parsed_failed_counter: %u",		global_mmt_stats->lls_parsed_failed_counter);
+		__INFO(" -----------------");
 
 		for(int i=0; i < global_mmt_stats->packet_id_n; i++ ) {
 			packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_vector[i];
 			__INFO(" mmt packet_id: %u", packet_mmt_stats->packet_id);
-			__INFO(" --------------");
-			__INFO("  current packet_sequence_number: %u", packet_mmt_stats->packet_sequence_number);
+
 			//print out ntp sample
 			uint16_t seconds;
 			uint16_t microseconds;
 			compute_ntp32_to_seconds_microseconds(packet_mmt_stats->timestamp, &seconds, &microseconds);
-
-			__INFO("  current timestamp: packet_id: %u, ntp: %u (s: %u, uS: %u)", packet_mmt_stats->packet_id, packet_mmt_stats->timestamp, seconds, microseconds);
-			__INFO("  mpu_sequence_number: %u", packet_mmt_stats->mpu_stats_timed->mpu_sequence_number);
 			__INFO(" --------------");
-
+			__INFO("  timestamp: packet_id: %u, ntp: %u (s: %u, uS: %u)", packet_mmt_stats->packet_id, packet_mmt_stats->timestamp, seconds, microseconds);
+			__INFO("  packet_sequence_number: %u", 			packet_mmt_stats->packet_sequence_number);
+			__INFO("  mpu_sequence_number: %u", 			packet_mmt_stats->mpu_stats_timed->mpu_sequence_number);
+			__INFO("  mpu_nontimed_total: %u", 				packet_mmt_stats->mpu_stats_nontimed->mpu_nontimed_total);
+			__INFO("  signalling_messages_total: %u", 		packet_mmt_stats->signalling_stats->signalling_messages_total);
+			__INFO(" --------------");
 		}
+
+		has_output=true;
 	}
 
+	//check for any flow derivations
 	if(global_mmt_stats->packet_id_delta) {
 		packet_id_mmt_stats_t* packet_mmt_stats = global_mmt_stats->packet_id_delta;
 		if(packet_mmt_stats->mpu_stats_timed->mpu_sequence_number_last &&
@@ -327,11 +335,20 @@ void dump_global_mmt_stats(){
 					packet_mmt_stats->mpu_stats_timed->mpu_sequence_number,
 					packet_mmt_stats->packet_sequence_number,
 					packet_mmt_stats->mpu_stats_timed->mpu_fragementation_counter);
+
+			has_output=true;
 		}
+	}
+
+	if(has_output) {
+		__INFO("");
 	}
 	//process any gaps or deltas
 
 	global_mmt_stats->packet_id_delta = NULL;
+
+
+
 }
 
 //make sure to invoke     mmtp_sub_flow_vector_init(&p_sys->mmtp_sub_flow_vector);
