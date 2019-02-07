@@ -98,14 +98,16 @@ void create_or_update_window_sizes(bool should_create) {
 	  //WINDOW *newwin(int nlines, int ncols, int begin_y, int begin_x);
 
      bw_window_outline = newwin(bw_window_height, bw_window_width, bw_window_y, 0);
-     bw_window = subwin(bw_window_outline, bw_window_height-2, bw_window_width-2, bw_window_y+1, 1);
+     bw_window_runtime = subwin(bw_window_outline, bw_window_height-2, half_cols-2, bw_window_y+1, 1);
+     bw_window_lifetime = subwin(bw_window_outline, bw_window_height-2, half_cols-2, bw_window_y+1, half_cols + 1);
+     box(bw_window_lifetime, 0, 0);
 
-     pkt_global_stats_window = newwin(pkt_window_height, half_cols, 0, 0);
-     pkt_flow_stats_window = newwin(pkt_window_height, half_cols, 0, half_cols);
+     pkt_global_stats_window_outline = newwin(pkt_window_height, half_cols, 0, 0);
+     pkt_global_stats_window = subwin(pkt_global_stats_window_outline, pkt_window_height-2, half_cols-2, 1, 1);
 
+     pkt_flow_stats_window_outline = newwin(pkt_window_height, half_cols, 0, half_cols);
+     pkt_flow_stats_window = subwin(pkt_flow_stats_window_outline, pkt_window_height-2, half_cols-2, 1, half_cols+1);
 
-     pkt_global_stats_window = newwin(pkt_window_height, half_cols, 0, 0);
-     pkt_flow_stats_window = newwin(pkt_window_height, half_cols, 0, half_cols);
 
      box(bw_window_outline, 0, 0);
      char msg_bandwidth[] = "RX Bandwidth Statistics";
@@ -113,28 +115,30 @@ void create_or_update_window_sizes(bool should_create) {
 
      mvwprintw(bw_window_outline, 0, (cols-strlen(msg_bandwidth))/2,"%s", msg_bandwidth);
 
-     box(pkt_global_stats_window, 0, 0);
-     char msg_global[] = "Global ATSC 3.0 Statistics...";
-     mvwprintw(pkt_global_stats_window, bw_window_height/2, (half_cols-strlen(msg_global))/2,"%s", msg_global);
+     box(pkt_global_stats_window_outline, 0, 0);
+     char msg_global[] = "Global ATSC 3.0 Statistics";
+     mvwprintw(pkt_global_stats_window_outline, 0, (half_cols-strlen(msg_global))/2,"%s", msg_global);
 
-     box(pkt_flow_stats_window, 0, 0);
-     char msg_flows[] = "Flow ATSC 3.0 Statistics...";
-     mvwprintw(pkt_flow_stats_window, bw_window_height/2, (half_cols - (half_cols /2) + strlen(msg_flows))/2,"%s", msg_flows);
+     box(pkt_flow_stats_window_outline, 0, 0);
+     char msg_flows[] = "Flow ATSC 3.0 Statistics";
+     mvwprintw(pkt_flow_stats_window_outline, 0, (half_cols - (half_cols /2) + strlen(msg_flows))/2,"%s", msg_flows);
   } else {
-	  wclear(bw_window);
+	  wclear(bw_window_runtime);
+	  wclear(bw_window_lifetime);
+
 	  wclear(pkt_global_stats_window);
 	  wclear(pkt_flow_stats_window);
 
-	  mvwin(bw_window, bw_window_y, 0);
-	  wresize(bw_window, bw_window_height, bw_window_width);
-	  mvwin(pkt_global_stats_window, 0, 0);
-	  wresize(pkt_global_stats_window, bw_window_height, half_cols);
-	  mvwin(pkt_flow_stats_window, 0, half_cols);
-	  wresize(pkt_flow_stats_window, bw_window_height, half_cols);
+	  mvwin(bw_window_outline, bw_window_y, 0);
+	  wresize(bw_window_outline, bw_window_height, bw_window_width);
+	  mvwin(pkt_global_stats_window_outline, 0, 0);
+	  wresize(pkt_global_stats_window_outline, bw_window_height, half_cols);
+	  mvwin(pkt_flow_stats_window_outline, 0, half_cols);
+	  wresize(pkt_flow_stats_window_outline, bw_window_height, half_cols);
   }
  wrefresh(bw_window_outline);
- wrefresh(pkt_global_stats_window);
- wrefresh(pkt_flow_stats_window);
+ wrefresh(pkt_global_stats_window_outline);
+ wrefresh(pkt_flow_stats_window_outline);
 
   //pkt_global_stats_window = wresize(rows-bw_window_height_rows, cols/2, 0, 0);
   //pkt_flow_stats_window = wresize(rows-bw_window_height_rows, cols/2, cols/2, 0);
@@ -471,7 +475,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	__TRACE("Length\t\t\t\t\t%d", (udp_header[4] << 8) + udp_header[5]);
 	__TRACE("Checksum\t\t\t\t0x%02x 0x%02x", udp_header[6], udp_header[7]);
 
+	udp_packet->total_packet_length = pkthdr->len;
 	udp_packet->data_length = pkthdr->len - (udp_header_start + 8);
+
 	if(udp_packet->data_length <=0 || udp_packet->data_length > 1514) {
 		__ERROR("invalid data length of udp packet: %d", udp_packet->data_length);
 		return;
@@ -502,7 +508,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	//compute total_rx on all packets
 	__TRACE("updating interval_total_current_rx: %d", udp_packet->data_length)
 
-	global_bandwidth_statistics->interval_total_current_rx += udp_packet->data_length;
+	global_bandwidth_statistics->interval_total_current_rx += udp_packet->total_packet_length;
 	global_stats->packet_counter_total_received++;
 
 	//drop mdNS

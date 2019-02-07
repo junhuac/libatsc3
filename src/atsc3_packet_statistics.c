@@ -21,10 +21,24 @@ int comparator_packet_id_mmt_stats_t(const void *a, const void *b)
 }
 
 
+packet_flow_t* find_packet_flow(uint32_t ip, uint16_t port) {
+	for(int i=0; i < global_stats->packet_flow_n; i++ ) {
+		packet_flow_t* packet_flow = global_stats->packet_flow_vector[i];
+		__PS_TRACE("  find_packet_flow with ip: %u, port: %u", ip, port);
+
+		if(packet_flow->ip == ip && packet_flow->port == port) {
+			__PS_TRACE("  find_packet_flow returning with %p", packet_flow);
+
+			return packet_flow;
+		}
+	}
+	return NULL;
+}
+
 packet_id_mmt_stats_t* find_packet_id(uint32_t ip, uint16_t port, uint32_t packet_id) {
 	for(int i=0; i < global_stats->packet_id_n; i++ ) {
 		packet_id_mmt_stats_t* packet_mmt_stats = global_stats->packet_id_vector[i];
-		__PS_TRACE("  find_packet_id with ip: %u, port: %u, %u from %u", ip, port, packet_id, packet_mmt_stats->packet_id);
+		__PS_TRACE("  find_packet_id with ip: %u, port: %u, %u", ip, port, packet_id, packet_mmt_stats->packet_id);
 
 		if(packet_mmt_stats->ip == ip && packet_mmt_stats->port == port && packet_mmt_stats->packet_id == packet_id) {
 			__PS_TRACE("  find_packet_id returning with %p", packet_mmt_stats);
@@ -86,7 +100,7 @@ packet_id_mmt_stats_t* find_or_get_packet_id(uint32_t ip, uint16_t port, uint32_
 	return packet_mmt_stats;
 }
 void atsc3_packet_statistics_mmt_timed_mpu_stats_populate(mmtp_payload_fragments_union_t* mmtp_payload, packet_id_mmt_stats_t* packet_mmt_stats) {
-
+	packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_timed_total++;
 	if(packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number) {
 		packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number_last = packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number;
 	} else {
@@ -103,6 +117,7 @@ void atsc3_packet_statistics_mmt_timed_mpu_stats_populate(mmtp_payload_fragments
 
 }
 void atsc3_packet_statistics_mmt_stats_populate(udp_packet_t* udp_packet, mmtp_payload_fragments_union_t* mmtp_payload) {
+
 
 	packet_id_mmt_stats_t* packet_mmt_stats = find_or_get_packet_id(udp_packet->dst_ip_addr, udp_packet->dst_port, mmtp_payload->mmtp_packet_header.mmtp_packet_id);
 
@@ -273,30 +288,25 @@ void atsc3_packet_statistics_dump_global_stats(){
 			uint16_t microseconds;
 			compute_ntp32_to_seconds_microseconds(packet_mmt_stats->timestamp, &seconds, &microseconds);
 
-			__PS_STATS_F(" Interval Flow: %u.%u.%u.%u:%u, packet_id: %u, NTP range: %u.%u to %u.%u (%-u - %-u)", __toip(packet_mmt_stats),
-					packet_mmt_stats->packet_id,
-					packet_mmt_stats->timestamp_sample_interval_start_s,
-					packet_mmt_stats->timestamp_sample_interval_start_us,
+			__PS_STATS_F(" Interval Flow: %u.%u.%u.%u:%u, packet_id: %u, NTP range: %u.%03u to %u.%03u (%-u - %-u)", __toip(packet_mmt_stats),
+																													packet_mmt_stats->packet_id,
+																													packet_mmt_stats->timestamp_sample_interval_start_s,
+																													packet_mmt_stats->timestamp_sample_interval_start_us/100,
 
-
-																														microseconds,
-																														seconds,
-																														packet_mmt_stats->timestamp_sample_interval_start,
-																														packet_mmt_stats->timestamp);
+																													seconds,
+																													microseconds/100,
+																													packet_mmt_stats->timestamp_sample_interval_start,
+																													packet_mmt_stats->timestamp);
 			//__PS_STATS(" --------------------------------------------------");
 
 			//switch between interval and global stats
 
 			//print out ntp sample
 
-			__PS_STATS_F("  packet_sequence_number range : %-u to %-u (0x%08x to 0x%08x)",	packet_mmt_stats->packet_sequence_number_sample_interval_start, 	packet_mmt_stats->packet_sequence_number, packet_mmt_stats->packet_sequence_number_sample_interval_start,	packet_mmt_stats->packet_sequence_number);
-			__PS_STATS_F("   - packet RX count           : %-10d",							packet_mmt_stats->packet_counter_sample_interval_processed);
-			__PS_STATS_F("   - missing packets           : %-10d",							packet_mmt_stats->packet_counter_sample_interval_missing);
-			__PS_STATS_F("   - packet seq num gap        : %-10d",							packet_mmt_stats->packet_sequence_number_last_gap);
-
-			__PS_STATS_F("  mpu timed_total              : %-10d",								packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_timed_total);
-			__PS_STATS_F("   - mpu_sequence_number range : %-10u to %-10u (0x%08x to 0x%08x)", 	packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number_first, packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number_first, packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number, packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number);
-			__PS_STATS_F("   - mfu gap size              : %-10d",								packet_mmt_stats->packet_sequence_number_last_gap);
+			__PS_STATS_F("  packet_sequence_number range: %-u to %-u (0x%08x to 0x%08x)",		packet_mmt_stats->packet_sequence_number_sample_interval_start, 	packet_mmt_stats->packet_sequence_number, packet_mmt_stats->packet_sequence_number_sample_interval_start,	packet_mmt_stats->packet_sequence_number);
+			__PS_STATS_F("  packet RX count: %-6d  missing: %-6d  packet seq num gap : %-10d",	packet_mmt_stats->packet_counter_sample_interval_processed, packet_mmt_stats->packet_counter_sample_interval_missing, packet_mmt_stats->packet_sequence_number_sample_interval_gap);
+			__PS_STATS_F("  mpu_sequence_number range: %-10u to %-10u (0x%08x to 0x%08x)", 	packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number_last, packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number_first, packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number, packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number);
+			__PS_STATS_F("  mpu timed_total: %-6d   ",								packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_timed_total); //mfu gap size: %-10d
 			//__PS_STATS("   - Flow max mfu gap         : %-10d",	 										packet_mmt_stats->packet_sequence_number_max_gap);
 			__PS_STATS_F("  mpu_nontimed_total           : %u", 									packet_mmt_stats->mpu_stats_nontimed_sample_interval->mpu_nontimed_total);
 			__PS_STATS_F("  signalling_messages total    : %u", 									packet_mmt_stats->signalling_stats_sample_interval->signalling_messages_total);

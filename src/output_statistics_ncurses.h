@@ -40,15 +40,18 @@ WINDOW* bw_window_outline;
 WINDOW* pkt_global_stats_window_outline;
 WINDOW* pkt_flow_stats_window_outline;
 
-WINDOW* bw_window;
+WINDOW* bw_window_runtime;
+WINDOW* bw_window_lifetime;
+
 WINDOW* pkt_global_stats_window;
 WINDOW* pkt_flow_stats_window;
 
-#define __BW_STATS(...) wprintw(bw_window, __VA_ARGS__);wprintw(bw_window,"\n");
+#define __BW_STATS_I(...) wprintw(bw_window_runtime, __VA_ARGS__);wprintw(bw_window_runtime,"\n");
+#define __BW_STATS_L(...) wprintw(bw_window_lifetime, __VA_ARGS__);wprintw(bw_window_lifetime,"\n");
 //#define __BW_STATS(...) wprintw(bw_window, __VA_ARGS__);wprintw(bw_window,"\n");
 #define __BW_STATS_BORDER(...)
-#define __BW_STATS_REFRESH(...) touchwin(bw_window_outline);wrefresh(bw_window);
-#define __BW_CLEAR() werase(bw_window)
+#define __BW_STATS_REFRESH(...) touchwin(bw_window_outline);wrefresh(bw_window_runtime);wrefresh(bw_window_lifetime);
+#define __BW_CLEAR() werase(bw_window_runtime); werase(bw_window_lifetime);
 //wclear(bw_window)
 
 #define __PS_STATS(...)

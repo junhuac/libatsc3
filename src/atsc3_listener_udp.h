@@ -22,6 +22,8 @@ typedef struct udp_packet {
 	int 			data_length;
 	u_char* 		data;
 
+	int				total_packet_length;
+
 } udp_packet_t;
 
 

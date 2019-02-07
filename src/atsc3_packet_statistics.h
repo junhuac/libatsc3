@@ -167,7 +167,14 @@ typedef struct packet_id_mmt_stats {
 
 } packet_id_mmt_stats_t;
 
+typedef struct packet_flow {
+	uint32_t ip;
+	uint16_t port;
+	uint32_t packet_counter;
 
+	int	packet_id_n;
+	packet_id_mmt_stats_t* packet_id_vector;
+} packet_flow_t;
 /*
  *
  * todo: capture these on a mmtp flow
@@ -199,6 +206,9 @@ typedef struct global_mmt_stats {
 	uint32_t packet_counter_mmt_nontimed_mpu;
 	uint32_t packet_counter_mmt_signaling;
 	uint32_t packet_counter_mmt_unknown;
+
+	int packet_flow_n;
+	packet_flow_t** packet_flow_vector;
 
 	int	packet_id_n;
 	packet_id_mmt_stats_t** packet_id_vector;
