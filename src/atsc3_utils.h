@@ -14,6 +14,11 @@
 
 #include "fixups.h"
 
+#define println(...) printf(__VA_ARGS__);printf("\n")
+#define __PRINTLN(...) printf(__VA_ARGS__);printf("\n")
+#define __PRINTF(...)  printf(__VA_ARGS__);
+
+
 #define uS 1000000ULL
 
 #define _ATSC3_UTILS_PRINTLN(...) printf(__VA_ARGS__);printf("\n")
@@ -45,6 +50,9 @@ long long timediff(struct timeval t1, struct timeval t0);
 
 #define __toip(packet_mmt_stats) (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
 //%u.%u.%u.%u:%u
+#define __toipnonstruct(ip) (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF
+#define __toipandportnonstruct(ip, port) (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF, port
+
 
 void* extract(uint8_t *bufPosPtr, uint8_t *dest, int size);
 
@@ -75,6 +83,9 @@ typedef struct atsc3_block {
 block_t* block_Alloc(int len);
 block_t* block_Duplicate(block_t* a);
 void block_Release(block_t* a);
+
+//alloc and copy - note limited to 16k
+char* strlcopy(char*);
 
 void freesafe(void* tofree);
 void freeclean(void** tofree);

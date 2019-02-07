@@ -2,10 +2,15 @@ all: intermediate_mmt intermediate_alc libatsc3_core unit_tests listener_tests
 clean:
 	rm -f *.o
 	
-intermediate_mmt: xml.o  atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmt_mpu_parser.o atsc3_mmt_signaling_message.o atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o fixups_timespec_get.o
+intermediate_mmt: xml.o  atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmt_mpu_parser.o atsc3_mmt_signaling_message.o \
+ atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o fixups_timespec_get.o atsc3_bandwidth_statistics.o
+ 
 intermediate_alc:alc_rx.c alc_session.c fec.c null_fec.c rs_fec.c xor_fec.c atsc3_alc_utils.c
+
 libatsc3_core: libatsc3.o
+
 unit_tests: atsc3_lmt_test atsc3_lls_slt_parser_test atsc3_lls_test atsc3_lls_SystemTime_test atsc3_mmt_signaling_message_test
+
 listener_tests: atsc3_alc_listener_test atsc3_lls_listener_test atsc3_mmt_listener_test atsc3_listener_test atsc3_listener_metrics_test 
 
 
@@ -41,12 +46,19 @@ alc_rx.o:  alc_rx.h alc_rx.c
 atsc3_alc_utils.o: atsc3_alc_utils.h atsc3_alc_utils.c
 	cc -g -c atsc3_alc_utils.c
 
+atsc3_bandwidth_statistics.o: atsc3_bandwidth_statistics.h atsc3_bandwidth_statistics.c
+	cc -g -c atsc3_bandwidth_statistics.c
 	
 	
 #core libatsc3 library gen
 
-libatsc3.o: atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o fixups_timespec_get.o atsc3_mmt_signaling_message.o atsc3_mmt_mpu_parser.o alc_channel.o alc_list.o alc_rx.o alc_session.o fec.o null_fec.o rs_fec.o xor_fec.o mad.o mad_rlc.o transport.o atsc3_alc_utils.o
-	ld -o libatsc3.o -r xml.o atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o fixups_timespec_get.o atsc3_mmt_signaling_message.o atsc3_mmt_mpu_parser.o alc_channel.o alc_list.o alc_rx.o alc_session.o fec.o null_fec.o rs_fec.o xor_fec.o mad.o mad_rlc.o transport.o atsc3_alc_utils.o
+libatsc3.o: atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o fixups_timespec_get.o \
+	atsc3_mmt_signaling_message.o atsc3_mmt_mpu_parser.o alc_channel.o alc_list.o alc_rx.o alc_session.o \
+	fec.o null_fec.o rs_fec.o xor_fec.o mad.o mad_rlc.o transport.o atsc3_alc_utils.o atsc3_bandwidth_statistics.o
+	
+	ld -o libatsc3.o -r xml.o atsc3_lls.o atsc3_mmtp_parser.o atsc3_mmtp_ntp32_to_pts.o atsc3_utils.o \
+		fixups_timespec_get.o atsc3_mmt_signaling_message.o atsc3_mmt_mpu_parser.o alc_channel.o alc_list.o \
+		alc_rx.o alc_session.o fec.o null_fec.o rs_fec.o xor_fec.o mad.o mad_rlc.o transport.o atsc3_alc_utils.o atsc3_bandwidth_statistics.o
 
 #unit test generation
 

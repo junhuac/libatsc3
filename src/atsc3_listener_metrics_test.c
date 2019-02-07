@@ -69,31 +69,31 @@ int PACKET_COUNTER=0;
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+
 #include "atsc3_lls.h"
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
 #include "atsc3_mmtp_ntp32_to_pts.h"
 #include "alc_rx.h"
+
 #include "alc_channel.h"
 #include "atsc3_utils.h"
 #include "atsc3_alc_utils.h"
+
+#include "atsc3_bandwidth_statistics.h"
 
 extern int _MPU_DEBUG_ENABLED;
 extern int _MMTP_DEBUG_ENABLED;
 extern int _LLS_DEBUG_ENABLED;
 
-#define println(...) printf(__VA_ARGS__);printf("\n")
 
-#define __PRINTLN(...) printf(__VA_ARGS__);printf("\n")
-#define __PRINTF(...)  printf(__VA_ARGS__);
-
-#define __ERROR(...)   printf("%s:%d:ERROR:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
-#define __WARN(...)    printf("%s:%d:WARN:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
-#define __INFO(...)    printf("%s:%d:INFO:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __ERROR(...)   printf("%s:%d:ERROR :","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __WARN(...)    printf("%s:%d:WARN: ","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __INFO(...)    printf("%s:%d: ","listener",__LINE__);__PRINTLN(__VA_ARGS__);
 
 #ifdef _ENABLE_DEBUG
-#define __DEBUG(...)   printf("%s:%d:DEBUG:","listener",__LINE__);__PRINTLN(__VA_ARGS__);
-#define __DEBUGF(...)  printf("%s:%d:DEBUG:","listener",__LINE__);__PRINTF(__VA_ARGS__);
+#define __DEBUG(...)   printf("%s:%d:DEBUG: ","listener",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __DEBUGF(...)  printf("%s:%d:DEBUG: ","listener",__LINE__);__PRINTF(__VA_ARGS__);
 #define __DEBUGA(...) 	__PRINTF(__VA_ARGS__);
 #define __DEBUGN(...)  __PRINTLN(__VA_ARGS__);
 #else
@@ -235,13 +235,11 @@ typedef struct global_mmt_stats {
 	uint32_t filtered_ipv4_packet_count;
 
 	struct timeval program_start_timeval;
-
-
-
-
 } global_mmt_stats_t;
 
 global_mmt_stats_t* global_stats;
+
+
 
 int comparator_packet_id_mmt_stats_t(const void *a, const void *b)
 {
@@ -273,23 +271,23 @@ int process_lls_table_slt_update(lls_table_t* lls) {
 
 		if(service->broadcast_svc_signaling.sls_protocol == SLS_PROTOCOL_ROUTE) {
 			if(!global_stats->alc_session) {
+				lls_dump_instance_table(global_stats->lls_table_slt);
+
 				global_stats->lls_slt_service_id_alc = service->service_id;
 				global_stats->alc_arguments = calloc(1, sizeof(alc_arguments_t));
 
 				global_stats->sls_source_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_source_ip_address);
-				__ERROR("adding sls_source ip: %s as: %u.%u.%u.%u",
-						service->broadcast_svc_signaling.sls_source_ip_address,
-						(global_stats->sls_source_ip_address >> 24) & 0xFF,
-						(global_stats->sls_source_ip_address >> 16) & 0xFF,
-						(global_stats->sls_source_ip_address >> 8) & 0xFF,
-						(global_stats->sls_source_ip_address) & 0xFF);
-
 
 				global_stats->sls_destination_ip_address = parseIpAddressIntoIntval(service->broadcast_svc_signaling.sls_destination_ip_address);
 				global_stats->sls_destination_udp_port = parsePortIntoIntval(service->broadcast_svc_signaling.sls_destination_udp_port);
-				global_stats->sls_source_ip_address = parsePortIntoIntval(service->broadcast_svc_signaling.sls_source_ip_address);
 
-				lls_dump_instance_table(global_stats->lls_table_slt);
+				__INFO("adding sls_source ip: %s as: %u.%u.%u.%u| dest: %s:%s as: %u.%u.%u.%u:%u (%u:%u)",
+						service->broadcast_svc_signaling.sls_source_ip_address,
+						__toipnonstruct(global_stats->sls_source_ip_address),
+						service->broadcast_svc_signaling.sls_destination_ip_address ,
+						service->broadcast_svc_signaling.sls_destination_udp_port,
+						__toipandportnonstruct(global_stats->sls_destination_ip_address, global_stats->sls_destination_udp_port),
+						global_stats->sls_destination_ip_address, global_stats->sls_destination_udp_port);
 
 				global_stats->alc_session = open_alc_session(global_stats->alc_arguments);
 
@@ -445,14 +443,14 @@ int DUMP_COUNTER_2=0;
 void dump_global_stats(){
 	bool has_output = false;
 
-	if(DUMP_COUNTER++%500 == 0) {
+	if(DUMP_COUNTER++%2000 == 0) {
 		struct timeval tNow;
 		gettimeofday(&tNow, NULL);
 
-		long long elapsedDuration = timediff(tNow, global_stats->program_start_timeval);
+		long long elapsedDurationUs = timediff(tNow, global_stats->program_start_timeval);
 
 		__INFO("-----------------");
-		__INFO(" Global ATSC 3.0 Stats: Runtime: %lli", elapsedDuration);
+		__INFO(" Global ATSC 3.0 Stats: Runtime: %-.2fs", elapsedDurationUs / 1000000.0);
 		__INFO("-----------------");
 		__INFO(" lls_packet_counter_recv: %u", 			global_stats->lls_packet_counter_recv);
 
@@ -492,23 +490,26 @@ void dump_global_stats(){
 
 			__INFO(" Flow: %u.%u.%u.%u:%u,  mmt packet_id: %u", (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
 					, packet_mmt_stats->packet_id);
-			__INFO(" total packets rx: %u, lost: %u, lost pct %f, recent mfu gap size; %d, max mfu gap: %d ",
-					packet_mmt_stats->packet_sequence_number_total,
-					packet_mmt_stats->packet_sequence_number_missing,
-					computed_flow_packet_loss,
-					packet_mmt_stats->packet_sequence_number_last_gap,
-					packet_mmt_stats->packet_sequence_number_max_gap);
 
 			//print out ntp sample
 			uint16_t seconds;
 			uint16_t microseconds;
 			compute_ntp32_to_seconds_microseconds(packet_mmt_stats->timestamp, &seconds, &microseconds);
 			__INFO(" --------------");
-			__INFO("  timestamp: packet_id: %u, ntp: %u (s: %u, uS: %u)", packet_mmt_stats->packet_id, packet_mmt_stats->timestamp, seconds, microseconds);
-			__INFO("  packet_sequence_number: %u", 			packet_mmt_stats->packet_sequence_number);
-			__INFO("  mpu_sequence_number: %u", 			packet_mmt_stats->mpu_stats_timed->mpu_sequence_number);
-			__INFO("  mpu_nontimed_total: %u", 				packet_mmt_stats->mpu_stats_nontimed->mpu_nontimed_total);
-			__INFO("  signalling_messages_total: %u", 		packet_mmt_stats->signalling_stats->signalling_messages_total);
+
+			__INFO("  recent mfu gap size       : %-10d, max mfu gap: %d ",	packet_mmt_stats->packet_sequence_number_last_gap,
+					packet_mmt_stats->packet_sequence_number_max_gap);
+			__INFO("  timestamp ntp			    : %-10u (s: %u, uS: %u)", 	packet_mmt_stats->timestamp, seconds, microseconds);
+			__INFO("  packet_sequence_number    : %-10u (0x%8x)", 			packet_mmt_stats->packet_sequence_number, packet_mmt_stats->packet_sequence_number);
+			__INFO("  mpu_sequence_number       : %-10u (0x%8x)", 			packet_mmt_stats->mpu_stats_timed->mpu_sequence_number, packet_mmt_stats->mpu_stats_timed->mpu_sequence_number);
+			__INFO("  mpu_nontimed_total        : %u", 						packet_mmt_stats->mpu_stats_nontimed->mpu_nontimed_total);
+			__INFO("  signalling_messages_total : %u", 						packet_mmt_stats->signalling_stats->signalling_messages_total);
+			__INFO(" --------------");
+
+			__INFO("  total packets rx          : %u, lost: %u, lost pct %f,",
+										packet_mmt_stats->packet_sequence_number_total,
+										packet_mmt_stats->packet_sequence_number_missing,
+										computed_flow_packet_loss);
 			__INFO(" --------------");
 		}
 
@@ -749,17 +750,24 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		__INFO("    Dst. Port   : %-5hu \t", (uint16_t)((udp_header[2] << 8) + udp_header[3]));
 	#endif
 
+	//compute total_rx on all packets
+	__TRACE("updating interval_total_current_rx: %d", udp_packet->data_length)
+
+	global_bandwidth_statistics->interval_total_current_rx += udp_packet->data_length;
 
 	//drop mdNS
 	if(udp_packet->dst_ip_addr == 3758096635 && udp_packet->dst_port == 5353) {
 		global_stats->filtered_ipv4_packet_count++;
+		__TRACE("setting %s,  %d+=%d,", "interval_filtered_current_rx", global_bandwidth_statistics->interval_filtered_current_rx, udp_packet->data_length);
+		global_bandwidth_statistics->interval_filtered_current_rx += udp_packet->data_length;
+
 		goto cleanup;
 	}
 
-
-
 	if(udp_packet->dst_ip_addr == LLS_DST_ADDR && udp_packet->dst_port == LLS_DST_PORT) {
 		global_stats->lls_packet_counter_recv++;
+		global_bandwidth_statistics->interval_lls_current_rx += udp_packet->data_length;
+		__TRACE("setting global_bandwidth_statistics->interval_lls_current_rx += %d", udp_packet->data_length);
 
 		//process as lls
 		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
@@ -772,12 +780,12 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 					global_stats->lls_table_slt->lls_table_version != lls->lls_table_version)) {
 
 					int retval = 0;
-					__INFO("Beginning processing of SLT from lls_table_slt_update");
+					__DEBUG("Beginning processing of SLT from lls_table_slt_update");
 
 					retval = process_lls_table_slt_update(lls);
 
 					if(!retval) {
-						__INFO("lls_table_slt_update -- complete");
+						__DEBUG("lls_table_slt_update -- complete");
 					} else {
 						global_stats->lls_parsed_failed_counter++;
 						__ERROR("unable to parse LLS table");
@@ -796,12 +804,18 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 	if(udp_packet->dst_ip_addr <= MIN_ATSC3_MULTICAST_BLOCK || udp_packet->dst_ip_addr >= MAX_ATSC3_MULTICAST_BLOCK) {
 		//out of range, so drop
 		global_stats->filtered_ipv4_packet_count++;
+		global_bandwidth_statistics->interval_filtered_current_rx += udp_packet->data_length;
+
 		goto cleanup;
 	}
+
+	//ALC (ROUTE) - If this flow is registered from the SLT, process it as ALC, otherwise run the flow thru MMT
 
 	if(global_stats->alc_session &&	(global_stats->sls_relax_source_ip_check || global_stats->sls_source_ip_address == udp_packet->src_ip_addr) &&
 				global_stats->sls_destination_ip_address == udp_packet->dst_ip_addr && global_stats->sls_destination_udp_port == udp_packet->dst_port) {
 		global_stats->alc_packets_recv++;
+
+		global_bandwidth_statistics->interval_alc_current_rx += udp_packet->data_length;
 
 		if(global_stats->alc_session) {
 			//re-inject our alc session
@@ -825,7 +839,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 			goto cleanup;
 		}
 	} else if((dst_ip_addr_filter == NULL && dst_ip_port_filter == NULL) || (udp_packet->dst_ip_addr == *dst_ip_addr_filter && udp_packet->dst_port == *dst_ip_port_filter)) {
-		//Process MMT
+
+		//Process flow as MMT
+		global_bandwidth_statistics->interval_mmt_current_rx += udp_packet->data_length;
 
 		global_stats->mmtp_counter_recv++;
 
@@ -976,12 +992,21 @@ int main(int argc,char **argv) {
     }
 
 
-    mmtp_sub_flow_vector = calloc(1, sizeof(mmtp_sub_flow_vector_t));
+    mmtp_sub_flow_vector = calloc(1, sizeof(*mmtp_sub_flow_vector));
     mmtp_sub_flow_vector_init(mmtp_sub_flow_vector);
 
     global_stats = calloc(1, sizeof(*global_stats));
     global_stats->sls_relax_source_ip_check = true;
     gettimeofday(&global_stats->program_start_timeval, 0);
+
+
+    //create our background thread for bandwidth calculation
+
+    global_bandwidth_statistics = calloc(1, sizeof(*global_bandwidth_statistics));
+	pthread_t thread_id;
+	pthread_create(&thread_id, NULL, printBandwidthStatistics, NULL);
+
+
 
     mkdir("mpu", 0777);
 
@@ -1002,12 +1027,11 @@ int main(int argc,char **argv) {
     if(pcap_setfilter(descr,&fp) == -1) {
         fprintf(stderr,"Error setting filter");
         exit(1);
-
     }
 
     pcap_loop(descr,-1,process_packet,NULL);
+    pthread_join(thread_id, NULL);
 
     return 0;
 }
-
 

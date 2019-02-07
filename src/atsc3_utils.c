@@ -218,8 +218,9 @@ void freeclean(void** tofree) {
 }
 
 
-uint32_t parseIpAddressIntoIntval(char* dst_ip) {
+uint32_t parseIpAddressIntoIntval(char* dst_ip_original) {
 	uint32_t ipAddressAsInteger = 0;
+	char* dst_ip = strlcopy(dst_ip_original);
 
 	char* pch = strtok (dst_ip,".");
 	int offset = 24;
@@ -230,7 +231,7 @@ uint32_t parseIpAddressIntoIntval(char* dst_ip) {
 		offset-=8;
 		pch = strtok (NULL, " ,.-");
 	}
-
+	freesafe(dst_ip);
 	return ipAddressAsInteger;
 }
 
@@ -241,4 +242,11 @@ uint16_t parsePortIntoIntval(char* dst_port) {
 	dst_port_filter |= dst_port_filter_int & 0xFFFF;
 
 	return dst_port_filter;
+}
+
+//alloc and copy - note limited to 16k
+char* strlcopy(char* src) {
+	int len = strnlen(src, 16384);
+	char* dest = calloc(len, sizeof(char*));
+	return strncpy(dest, src, len);
 }
