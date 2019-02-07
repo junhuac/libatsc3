@@ -227,7 +227,7 @@ int DUMP_COUNTER_2=0;
 
 void atsc3_packet_statistics_dump_global_stats(){
 	bool has_output = false;
-
+	DUMP_COUNTER++;
 	if(DUMP_COUNTER%10000 == 0) {
 		struct timeval tNow;
 		gettimeofday(&tNow, NULL);
