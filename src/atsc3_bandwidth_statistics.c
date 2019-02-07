@@ -18,8 +18,7 @@ void *printBandwidthStatistics(void *vargp)
 	while(true) {
 		gettimeofday(&global_bandwidth_statistics->snapshot_timeval_start, NULL);
 		__BW_TRACE("setting global_bandwidth_statistics->snapshot_timeval_start to: %lu", global_bandwidth_statistics->snapshot_timeval_start.tv_sec);
-
-		sleep(5);
+		sleep(1);
 
 		gettimeofday(&time_now, NULL);
 		__BW_TRACE("using snapshot_timeval_start: %lu, time_now as global_bandwidth_statistics->snapshot_timeval_start to: %lu", global_bandwidth_statistics->snapshot_timeval_start.tv_sec, time_now.tv_sec);
@@ -29,9 +28,10 @@ void *printBandwidthStatistics(void *vargp)
 		double deltaTS = deltaTuS/1000000.0;
 
 		long long runtimeTuS = timediff(time_now, global_bandwidth_statistics->program_timeval_start);
-		double runtimeTS = deltaTuS/1000000.0;
+		double runtimeTS = runtimeTuS/1000000.0;
+		__BW_CLEAR();
 
-		__BW_STATS("--------------------------------------------------------------------------------");
+		__BW_STATS_BORDER("--------------------------------------------------------------------------------");
 		__BW_STATS("Bandwidth Stats over: %.2fs (runtime: %.2fs)", deltaTS, runtimeTS);
 		__BW_STATS("--------------------------------------------------------------------------------");
 
@@ -68,14 +68,15 @@ void *printBandwidthStatistics(void *vargp)
 		global_bandwidth_statistics->interval_filtered_last_rx = global_bandwidth_statistics->interval_filtered_current_rx;
 		global_bandwidth_statistics->grand_filtered_rx += interval_filtered_delta;
 
-		__BW_STATS("  interval lls rx   : %'13d B/s, %'13d B, grand: %'13d B", interval_lls_delta, 		interval_lls_rx_s,		global_bandwidth_statistics->grand_lls_rx);
-		__BW_STATS("  interval mmt      : %'13d B/s, %'13d B, grand: %'13d B", interval_mmt_delta,		interval_mmt_rx_s,		global_bandwidth_statistics->grand_mmt_rx);
-		__BW_STATS("  interval alc rx   : %'13d B/s, %'13d B, grand: %'13d B", interval_alc_delta, 		interval_alc_rx_s,		global_bandwidth_statistics->grand_alc_rx);
-		__BW_STATS("  interval filt.    : %'13d B/s, %'13d B, grand: %'13d B", interval_filtered_delta, interval_filtered_rx_s,	global_bandwidth_statistics->grand_filtered_rx);
-		__BW_STATS("  ------------------");
-		__BW_STATS("  interval total rx : %'13d B/s, %'13d B, grand: %'13d B", interval_total_delta, 	interval_total_rx_s,  	global_bandwidth_statistics->grand_total_rx);
+		__BW_STATS("  interval lls rx   : %'13d B/s, %'13d B,             grand: %'13d B", interval_lls_delta, 		interval_lls_rx_s,		global_bandwidth_statistics->grand_lls_rx);
+		__BW_STATS("  interval mmt      : %'13d B/s, %'13d B,             grand: %'13d B", interval_mmt_delta,		interval_mmt_rx_s,		global_bandwidth_statistics->grand_mmt_rx);
+		__BW_STATS("  interval alc rx   : %'13d B/s, %'13d B,             grand: %'13d B", interval_alc_delta, 		interval_alc_rx_s,		global_bandwidth_statistics->grand_alc_rx);
+		__BW_STATS("  interval filt.    : %'13d B/s, %'13d B,             grand: %'13d B", interval_filtered_delta, interval_filtered_rx_s,	global_bandwidth_statistics->grand_filtered_rx);
+		__BW_STATS_BORDER("  ------------------");
+		__BW_STATS("  interval total rx : %'13d B/s, %'13d B,             grand: %'13d B", interval_total_delta, 	interval_total_rx_s,  	global_bandwidth_statistics->grand_total_rx);
 
-		__BW_STATS("--------------------------------------------------------------------------------");
+		__BW_STATS_BORDER("--------------------------------------------------------------------------------");
+		__BW_STATS_REFRESH();
 	}
 
 	return NULL;

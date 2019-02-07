@@ -12,12 +12,20 @@
 #include <unistd.h>
 #include <locale.h>
 
+#include "output_statistics_ncurses.h"
 #include "atsc3_utils.h"
+
 
 #ifndef ATSC3_BANDWIDTH_STATISTICS_H_
 #define ATSC3_BANDWIDTH_STATISTICS_H_
 
+#ifndef __BW_STATS_NCURSES
 #define __BW_STATS(...)   printf("%s:%d: ","bw_stats",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __BW_STATS_BORDER(...) __BW_STATS(__VA_ARGS__)
+#define __BW_STATS_REFRESH()
+#define __BW_CLEAR()
+#endif
+
 #define __BW_TRACE(...)   //printf("%s:%d:TRACE: ",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
 
 typedef struct bandwith_statistics {

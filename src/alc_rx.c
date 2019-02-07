@@ -723,7 +723,7 @@ int alc_rx_analyze_packet(char *data, int len, alc_channel_t *ch, alc_packet_t**
 	memcpy(alc_packet->alc_payload, &data[hdrlen], alc_packet->alc_len);
 
 	ALC_RX_DEBUG("alc_packet is now: %p", alc_packet);
-	return OK;
+	return ALC_OK;
 
 error:
 	if(def_lct_hdr) {

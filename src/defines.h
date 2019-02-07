@@ -120,7 +120,7 @@ extern "C" {
 #define MAX_TX_QUEUE_SIZE			1000	/**< Maximum transmission queue size in packets */
 
 #define WAITING_FDT		5	/**< FDT instance is in parsing state */
-#define OK				0	/**< Correct packet received */
+#define ALC_OK				0	/**< Correct packet received */
 #define EMPTY_PACKET	3	/**< Empty packet received */
 #define HDR_ERROR		2	/**< Error in FLUTE header */
 #define MEM_ERROR		1	/**< Error when reserving memory */

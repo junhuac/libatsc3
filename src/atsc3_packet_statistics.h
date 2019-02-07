@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <locale.h>
+#include "output_statistics_ncurses.h"
 
 #include "atsc3_utils.h"
 #include "atsc3_lls.h"
@@ -20,7 +21,15 @@
 #ifndef ATSC3_MMT_PACKET_STATISTICS_H_
 #define ATSC3_MMT_PACKET_STATISTICS_H_
 
+
+
+#ifndef __PKT_STATS_NCURSES
+#define __PS_REFRESH()
+#define __PS_CLEAR()
 #define __PS_STATS(...)   printf("%s:%d: ","pkt_stats",__LINE__);__PRINTLN(__VA_ARGS__);
+#define __PS_STATS_G(...) __PS_STATS(__VA_ARGS__);
+#define __PS_STATS_F(...) __PS_STATS(__VA_ARGS__);
+
 #define __PS_STATSL(...)  printf("%s:%d: ","pkt_stats",__LINE__);printf(__VA_ARGS__);
 #define __PS_STATSC(...)  printf(__VA_ARGS__);
 #define __PS_STATSN(...)  __PRINTLN(__VA_ARGS__);
@@ -28,6 +37,7 @@
 #define __PS_ERROR(...)   printf("%s:%d:ERROR :","pkt_stats",__LINE__);__PRINTLN(__VA_ARGS__);
 #define __PS_WARN(...)    printf("%s:%d:WARN: ","pkt_stats",__LINE__);__PRINTLN(__VA_ARGS__);
 #define __PS_INFO(...)    printf("%s:%d: ",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
+#endif
 
 #ifdef _ENABLE_DEBUG
 #define __PS_DEBUG(...)   printf("%s:%d:DEBUG: ",__FILE__,__LINE__);__PRINTLN(__VA_ARGS__);
@@ -89,6 +99,16 @@ typedef struct packet_id_signalling_stats {
 
 } packet_id_signalling_stats_t;
 
+typedef struct packet_id_missing {
+	uint32_t packet_sequence_number_present_oldest;
+	uint32_t timestamp_oldest;
+	uint32_t packet_sequence_number_missing_oldest;
+	uint32_t packet_sequence_number_missing_newest;
+	uint32_t packet_sequence_number_present_newest;
+	uint32_t timestamp_newest;
+	uint32_t missing_count;
+} packet_id_missing_t;
+
 //remember, many of these values can roll over
 //needed: uint33_t for nullables :)
 typedef struct packet_id_mmt_stats {
@@ -142,8 +162,11 @@ typedef struct packet_id_mmt_stats {
 	packet_id_mmt_nontimed_mpu_stats_t* 	mpu_stats_nontimed_lifetime;
 	packet_id_signalling_stats_t* 			signalling_stats_lifetime;
 
+	int						packet_id_missing_n;
+	packet_id_missing_t**	packet_id_missing_vector;
 
 } packet_id_mmt_stats_t;
+
 
 /*
  *
