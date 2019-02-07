@@ -148,11 +148,11 @@ typedef struct packet_id_mmt_stats {
 	uint32_t packet_sequence_number_sample_interval_gap;	//the gap between dump_stats flows
 	uint32_t packet_sequence_number_max_gap;
 
-	uint32_t packet_counter_sample_interval_processed;
-	uint32_t packet_counter_sample_interval_missing;
+	uint32_t packet_sequence_number_sample_interval_processed;
+	uint32_t packet_sequence_number_sample_interval_missing;
 
-	uint32_t packet_counter_lifetime_processed;
-	uint32_t packet_counter_lifetime_missing;
+	uint32_t packet_sequence_number_lifetime_processed;
+	uint32_t packet_sequence_number_lifetime_missing;
 
 	packet_id_mmt_timed_mpu_stats_t* 		mpu_stats_timed_sample_interval;
 	packet_id_mmt_nontimed_mpu_stats_t* 	mpu_stats_nontimed_sample_interval;
@@ -171,6 +171,10 @@ typedef struct packet_flow {
 	uint32_t ip;
 	uint16_t port;
 	uint32_t packet_counter;
+
+	uint32_t packet_counter_sample_interval_processed;
+	uint32_t packet_counter_lifetime_processed;
+
 
 	int	packet_id_n;
 	packet_id_mmt_stats_t* packet_id_vector;
