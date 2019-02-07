@@ -29,6 +29,9 @@
 #define __PS_STATS(...)   printf("%s:%d: ","pkt_stats",__LINE__);__PRINTLN(__VA_ARGS__);
 #define __PS_STATS_G(...) __PS_STATS(__VA_ARGS__);
 #define __PS_STATS_F(...) __PS_STATS(__VA_ARGS__);
+#define __PS_STATS_L(...) fprintf( stderr, __VA_ARGS__);fprintf( stderr, "\n");
+//__PS_STATS(__VA_ARGS__);
+#define	__PS_REFRESH_L();
 
 #define __PS_STATSL(...)  printf("%s:%d: ","pkt_stats",__LINE__);printf(__VA_ARGS__);
 #define __PS_STATSC(...)  printf(__VA_ARGS__);

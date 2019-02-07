@@ -19,6 +19,8 @@
 //#include "libmp4.h"
 //#include "mp4.h"
 
+extern int _MMTP_DEBUG_ENABLED;
+extern int _MMTP_TRACE_ENABLED;
 #define _MMTP_PRINTLN(...) printf(__VA_ARGS__);printf("\n")
 #define _MMTP_ERROR(...)   printf("%s:%d:ERROR:",__FILE__,__LINE__);_MMTP_PRINTLN(__VA_ARGS__);
 #define _MMTP_WARN(...)    printf("%s:%d:WARN:",__FILE__,__LINE__);_MMTP_PRINTLN(__VA_ARGS__);

@@ -145,13 +145,13 @@ void atsc3_packet_statistics_mmt_stats_populate(udp_packet_t* udp_packet, mmtp_p
 		global_stats->packet_counter_mmtp_packets_missing += packet_mmt_stats->packet_sequence_number_last_gap;
 
 		//push this to our missing packet flow for investigation
-		__PS_WARN("packets missing:\t%u.%u.%u.%u:%u\tpacket_id:\t%d\tPSN_from:\t%d\tPSN_to:\t%d\tTotal_missing: %u",
+		__PS_STATS_L("packets missing:\t%u.%u.%u.%u:%u\tpacket_id:\t%d\tPSN_from:\t%d\tPSN_to:\t%d\tTotal_missing: %u",
 				__toip(packet_mmt_stats),
 				packet_mmt_stats->packet_id,
 				packet_mmt_stats->packet_sequence_number,
 				mmtp_payload->mmtp_packet_header.packet_sequence_number,
 				packet_mmt_stats->packet_sequence_number_last_gap);
-
+		__PS_REFRESH_L();
 	}
 
 	//remember, a lot of these values can roll over...
@@ -299,11 +299,11 @@ void atsc3_packet_statistics_dump_global_stats(){
 																													packet_mmt_stats->timestamp);
 
 
-			__PS_STATS_F("  packet_sequence_numbers: %-u to %-u (0x%08x to 0x%08x)",		packet_mmt_stats->packet_sequence_number_sample_interval_start, 	packet_mmt_stats->packet_sequence_number, packet_mmt_stats->packet_sequence_number_sample_interval_start,	packet_mmt_stats->packet_sequence_number);
+			__PS_STATS_F("  packet_sequence_numbers: %-10u to %-10u (0x%08x to 0x%08x)",		packet_mmt_stats->packet_sequence_number_sample_interval_start, 	packet_mmt_stats->packet_sequence_number, packet_mmt_stats->packet_sequence_number_sample_interval_start,	packet_mmt_stats->packet_sequence_number);
 			__PS_STATS_F("  packet RX count: %-6d                                    mpu_sequence_number: %-10u  ",	packet_mmt_stats->packet_sequence_number_sample_interval_processed,
 																											packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_sequence_number_last);
 
-			__PS_STATS_F("  missing        : %-6d,                                   mpu timed_total: %-6d", 	packet_mmt_stats->packet_sequence_number_sample_interval_missing,
+			__PS_STATS_F("  missing        : %-6d                                   mpu timed_total: %-6d", 	packet_mmt_stats->packet_sequence_number_sample_interval_missing,
 																									packet_mmt_stats->mpu_stats_timed_sample_interval->mpu_timed_total);
 			__PS_STATS_F("  pkt_seq num gap: %-10d                                signalling_messages total: %u", packet_mmt_stats->packet_sequence_number_sample_interval_gap,
 					packet_mmt_stats->signalling_stats_sample_interval->signalling_messages_total);

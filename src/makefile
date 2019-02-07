@@ -109,5 +109,6 @@ atsc3_listener_metrics_test: atsc3_lls_alc_tools.h atsc3_listener_metrics_test.c
 	cc -g atsc3_listener_metrics_test.c atsc3_bandwidth_statistics.c atsc3_packet_statistics.c libatsc3.o -lz -lpcap -o atsc3_listener_metrics_test
 	
 atsc3_listener_metrics_ncurses: atsc3_lls_alc_tools.h atsc3_listener_metrics_ncurses.c  atsc3_bandwidth_statistics.c atsc3_packet_statistics.c  libatsc3.o
-	cc -D OUTPUT_STATISTICS=NCURSES -g atsc3_listener_metrics_ncurses.c atsc3_bandwidth_statistics.c atsc3_packet_statistics.c libatsc3.o -lz -lpcap -lncurses -o atsc3_listener_metrics_ncurses
+	#cc -D OUTPUT_STATISTICS=NCURSES -g atsc3_listener_metrics_ncurses.c atsc3_bandwidth_statistics.c atsc3_packet_statistics.c libatsc3.o -lz -lpcap -lncurses -o atsc3_listener_metrics_ncurses
+	cc -D _TEST_RUN_VALGRIND_OSX_=true -g atsc3_listener_metrics_ncurses.c atsc3_bandwidth_statistics.c atsc3_packet_statistics.c libatsc3.o -lz -lpcap -lncurses -o atsc3_listener_metrics_ncurses
 

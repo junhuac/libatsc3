@@ -55,6 +55,7 @@ shall carry a Destination IP address either
 
 //#define _ENABLE_TRACE 1
 //#define _SHOW_PACKET_FLOW 1
+
 int PACKET_COUNTER=0;
 
 #include <pcap.h>
@@ -74,11 +75,28 @@ int PACKET_COUNTER=0;
 #include <ncurses.h>                    /* ncurses.h includes stdio.h */
 #include "output_statistics_ncurses.h"
 
+#ifndef _TEST_RUN_VALGRIND_OSX_
+
 int printf(const char *format, ...)  {
 return 0;
 }
+#endif
+#if !defined OUTPUT_STATISTICS && OUTPUT_STATISTICS == NCURSES
+
+WINDOW* bw_window_outline;
+WINDOW* pkt_global_stats_window_outline;
+WINDOW* pkt_flow_stats_window_outline;
+
+WINDOW* bw_window_runtime;
+WINDOW* bw_window_lifetime;
+
+WINDOW* pkt_global_stats_window;
+WINDOW* pkt_global_loss_window;
+
+WINDOW* pkt_flow_stats_window;
 WINDOW* my_window;
 
+#endif
 
 void create_or_update_window_sizes(bool should_create) {
     int rows, cols;
@@ -103,21 +121,23 @@ void create_or_update_window_sizes(bool should_create) {
      box(bw_window_lifetime, 0, 0);
 
      pkt_global_stats_window_outline = newwin(pkt_window_height, half_cols, 0, 0);
-     pkt_global_stats_window = subwin(pkt_global_stats_window_outline, pkt_window_height-2, half_cols-2, 1, 1);
+     pkt_global_stats_window = subwin(pkt_global_stats_window_outline, 20, half_cols-2, 1, 1);
+     pkt_global_loss_window = subwin(pkt_global_stats_window_outline, pkt_window_height-25, half_cols-4, 22, 2);
 
      pkt_flow_stats_window_outline = newwin(pkt_window_height, half_cols, 0, half_cols);
      pkt_flow_stats_window = subwin(pkt_flow_stats_window_outline, pkt_window_height-2, half_cols-2, 1, half_cols+1);
 
-
      box(bw_window_outline, 0, 0);
      char msg_bandwidth[] = "RX Bandwidth Statistics";
-    // mvwprintw(bw_window, 0, (cols-strlen(msg_bandwidth))/2,"%s", msg_bandwidth);
-
      mvwprintw(bw_window_outline, 0, (cols-strlen(msg_bandwidth))/2,"%s", msg_bandwidth);
 
      box(pkt_global_stats_window_outline, 0, 0);
      char msg_global[] = "Global ATSC 3.0 Statistics";
      mvwprintw(pkt_global_stats_window_outline, 0, (half_cols-strlen(msg_global))/2,"%s", msg_global);
+
+     box(pkt_global_loss_window, 0, 0);
+     char msg_global_lossl[] = "Loss";
+     mvwprintw(pkt_global_loss_window, 0, (half_cols-strlen(msg_global))/2,"%s", msg_global_lossl);
 
      box(pkt_flow_stats_window_outline, 0, 0);
      char msg_flows[] = "Flow ATSC 3.0 Statistics";
@@ -387,7 +407,7 @@ void mpu_dump_reconstitued(uint32_t dst_ip, uint16_t dst_port, mmtp_payload_frag
 
 	__DEBUG("::dumpMfu ******* file dump file: %s", myFilePathName);
 
-	FILE *f = fopen(myFilePathName, "a");
+		FILE *f = fopen(myFilePathName, "a");
 	if(!f) {
 		__ERROR("::dumpMpu ******* UNABLE TO OPEN FILE %s", myFilePathName);
 			return;
@@ -529,10 +549,10 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		lls_table_t* lls = lls_table_create(udp_packet->data, udp_packet->data_length);
 		if(lls) {
 			global_stats->packet_counter_lls_packets_parsed++;
-
+			bool should_free_lls = true; //do not free the lls table if we keep a reference in process_lls_table_slt_update
 			if(lls->lls_table_id == SLT) {
 				global_stats->packet_counter_lls_slt_packets_parsed++;
-				//if we have a lls_slt table, and the group is the same but its a new vewsion, reprocess
+				//if we have a lls_slt table, and the group is the same but its a new version, reprocess
 				if(!lls_session->lls_table_slt ||
 					(lls_session->lls_table_slt && lls_session->lls_table_slt->lls_group_id == lls->lls_group_id &&
 					lls_session->lls_table_slt->lls_table_version != lls->lls_table_version)) {
@@ -541,15 +561,21 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 					__DEBUG("Beginning processing of SLT from lls_table_slt_update");
 
 					retval = process_lls_table_slt_update(lls);
+					should_free_lls = false;
 
 					if(!retval) {
 						__DEBUG("lls_table_slt_update -- complete");
 					} else {
 						global_stats->packet_counter_lls_packets_parsed_error++;
 						__ERROR("unable to parse LLS table");
+						lls_table_free(lls);
+
 						goto cleanup;
 					}
 				}
+			}
+			if(should_free_lls) {
+				lls_table_free(lls);
 			}
 		}
 
@@ -636,8 +662,9 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 			} else {
 				//non-timed
 				global_stats->packet_counter_mmt_nontimed_mpu++;
-
 			}
+
+
 		} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
 
 			signaling_message_dump(mmtp_payload);
@@ -650,6 +677,8 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		}
 
 		atsc3_packet_statistics_dump_global_stats();
+		mmtp_payload_fragments_union_free(&mmtp_payload);
+
 	}
 
 cleanup:
@@ -727,6 +756,7 @@ int main(int argc,char **argv) {
     	println("");
     	exit(1);
     }
+    // mkdir("mpu", 0777);
 
     /** setup global structs **/
 
@@ -740,16 +770,17 @@ int main(int argc,char **argv) {
     global_bandwidth_statistics = calloc(1, sizeof(*global_bandwidth_statistics));
 	gettimeofday(&global_bandwidth_statistics->program_timeval_start, NULL);
 
-
     //create our background thread for bandwidth calculation
 
-	pthread_t thread_id;
-	pthread_create(&thread_id, NULL, printBandwidthStatistics, NULL);
 
-    mkdir("mpu", 0777);
 
     /** ncurses support **/
 
+#ifndef _TEST_RUN_VALGRIND_OSX_
+
+	pthread_t thread_id;
+
+	pthread_create(&thread_id, NULL, printBandwidthStatistics);
 
     struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));
@@ -758,27 +789,12 @@ int main(int argc,char **argv) {
 
     int rows, cols;
     char msg[] = "Loading...";
-    //initscr();                             /* start the curses mode */
-
-   //set_term()
     my_window = initscr();
+//    getmaxyx(my_window,rows,cols);              /* get the number of rows and columns */
 
-   // FILE *f = fopen("/dev/tty", "r+");
-   // SCREEN *my_newterm = newterm(NULL, f, f);
-//    SCREEN* my_newterm = newterm(NULL, stderr, stdin);          /* Start curses mode          */
-  //  set_term(my_newterm);
-     // WINDOW* my_newwindow = curscr();
-    //set_term
-    getmaxyx(my_window,rows,cols);              /* get the number of rows and columns */
-  //  mvprintw(row/2,(col-strlen(msg))/2,"%s",msg);
-                                           /* print the message at the center of the screen */
-//    mvprintw(row-2,0,"This screen has %d rows and %d columns\n",row,col);
- //   printw("Try resizing your window(if possible) and then run this program again");
+    create_or_update_window_sizes(true);
 
-
-   create_or_update_window_sizes(true);
-   // refresh();
-
+#endif
 
 
 
@@ -802,7 +818,6 @@ int main(int argc,char **argv) {
     }
 
     pcap_loop(descr,-1,process_packet,NULL);
-    pthread_join(thread_id, NULL);
 
     return 0;
 }

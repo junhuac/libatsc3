@@ -185,6 +185,10 @@ block_t* block_Alloc(int len) {
 	return new_block;
 }
 
+/**
+ * todo, fix me to use ** to null out block_t ref
+ */
+
 block_t* block_Duplicate(block_t* a) {
 	block_t* b= block_Alloc(a->i_buffer);
 	memcpy(b->p_buffer, a->p_buffer, a->i_buffer);

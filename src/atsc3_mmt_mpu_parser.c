@@ -12,10 +12,11 @@
 #include "atsc3_mmtp_types.h"
 #include "atsc3_mmtp_parser.h"
 #include "atsc3_mmt_mpu_parser.h"
+
 int _MPU_DEBUG_ENABLED = 1;
 int _MPU_TRACE_ENABLED = 0;
 
-uint8_t* mmt_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_payload_fragments_union_t* mmtp_packet_header, uint8_t* udp_raw_buf, int udp_raw_buf_size) {
+uint8_t* mmt_mpu_parse_payload(mmtp_sub_flow_vector_t* mmtp_sub_flow_vector, mmtp_payload_fragments_union_t* mmtp_packet_header, uint8_t* udp_raw_buf, int udp_raw_buf_size) {
 
 	mmtp_sub_flow_t *mmtp_sub_flow = NULL;
 	block_t *mmtp_raw_packet_block;
@@ -439,4 +440,21 @@ mpu_fragments_t* mpu_fragments_find_packet_id(mmtp_sub_flow_vector_t *vec, uint1
 	}
 
 	return NULL;
+}
+
+void mmt_mpu_free_payload(mmtp_payload_fragments_union_t* mmtp_payload_fragments) {
+	if(mmtp_payload_fragments && mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type == 0x0) {
+		if(mmtp_payload_fragments->mmtp_mpu_type_packet_header.raw_packet) {
+			free(mmtp_payload_fragments->mmtp_mpu_type_packet_header.raw_packet);
+			mmtp_payload_fragments->mmtp_mpu_type_packet_header.raw_packet = NULL;
+		}
+
+		if(mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_data_unit_payload) {
+			_MMTP_TRACE("mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_data_unit_payload BEFORE : %p", mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_data_unit_payload);
+			block_Release(mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_data_unit_payload);
+
+			mmtp_payload_fragments->mmtp_mpu_type_packet_header.mpu_data_unit_payload = NULL;
+		}
+	}
+
 }

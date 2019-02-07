@@ -1,0 +1,1 @@
+valgrind --leak-check=full --show-leak-kinds=all  --leak-check=yes ./atsc3_listener_metrics_ncurses vnic1 

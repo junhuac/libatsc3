@@ -217,7 +217,7 @@ mmtp_payload_fragments_union_t* mmtp_packet_parse(mmtp_sub_flow_vector_t* mmtp_s
 		_MMTP_DEBUG("before: mmt_parse_payload: udp raw buf size: %d, raw_packet_ptr: %p, udp_raw_buf: %p", udp_raw_buf_size, raw_packet_ptr, udp_raw_buf);
 		int new_size = udp_raw_buf_size - (raw_packet_ptr - udp_raw_buf);
 
-		mmt_parse_payload(mmtp_sub_flow_vector, mmtp_payload_fragments, raw_packet_ptr, new_size);
+		mmt_mpu_parse_payload(mmtp_sub_flow_vector, mmtp_payload_fragments, raw_packet_ptr, new_size);
 	} else
 #if _ISO230081_1_MMTP_GFD_SUPPORT_
 	if(mmtp_payload_fragments->mmtp_packet_header.mmtp_payload_type == 0x1) {
@@ -255,6 +255,20 @@ void mmtp_sub_flow_vector_init(mmtp_sub_flow_vector_t *mmtp_sub_flow_vector) {
 	atsc3_vector_init(mmtp_sub_flow_vector);
 	__PRINTF_DEBUG("%d:mmtp_sub_flow_vector_init: %p\n", __LINE__, mmtp_sub_flow_vector);
 }
+
+void mmtp_payload_fragments_union_free(mmtp_payload_fragments_union_t** mmtp_payload_fragments_p) {
+	mmtp_payload_fragments_union_t* mmtp_payload_fragment = *mmtp_payload_fragments_p;
+	if(mmtp_payload_fragment) {
+		if(mmtp_payload_fragment->mmtp_packet_header.mmtp_payload_type == 0x0) {
+			//clean up
+			mmt_mpu_free_payload(mmtp_payload_fragment);
+		}
+
+		free(mmtp_payload_fragment);
+		mmtp_payload_fragments_p = NULL;
+	}
+}
+
 
 /**
 

@@ -546,6 +546,7 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 				global_stats->packet_counter_mmt_nontimed_mpu++;
 
 			}
+
 		} else if(mmtp_payload->mmtp_packet_header.mmtp_payload_type == 0x2) {
 
 			signaling_message_dump(mmtp_payload);
@@ -558,6 +559,8 @@ void process_packet(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char
 		}
 
 		atsc3_packet_statistics_dump_global_stats();
+		mmtp_payload_fragments_union_free(&mmtp_payload);
+
 	}
 
 cleanup:
