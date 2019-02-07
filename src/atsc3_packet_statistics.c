@@ -129,8 +129,8 @@ void atsc3_packet_statistics_mmt_stats_populate(udp_packet_t* udp_packet, mmtp_p
 	if(packet_mmt_stats->has_packet_sequence_number &&
 		mmtp_payload->mmtp_packet_header.packet_sequence_number != packet_mmt_stats->packet_sequence_number + 1) {
 
-		//compute our intra packet gap, remember to add 1 because we have the acnchor packets
-		packet_mmt_stats->packet_sequence_number_last_gap = mmtp_payload->mmtp_packet_header.packet_sequence_number - packet_mmt_stats->packet_sequence_number + 1;
+		//compute our intra packet gap, remember to add 1 because we have the anchor packets
+		packet_mmt_stats->packet_sequence_number_last_gap = mmtp_payload->mmtp_packet_header.packet_sequence_number - packet_mmt_stats->packet_sequence_number - 1;
 
 		//compute our sample interval gap
 		packet_mmt_stats->packet_sequence_number_sample_interval_gap += packet_mmt_stats->packet_sequence_number_last_gap;
