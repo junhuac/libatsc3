@@ -15,3 +15,4 @@
 /mpu/
 /route/
 /atsc3_listener_metrics_test
+/atsc3_listener_metrics_ncurses
