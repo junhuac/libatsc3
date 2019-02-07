@@ -165,6 +165,7 @@ typedef struct packet_id_mmt_stats {
 	packet_id_mmt_nontimed_mpu_stats_t* 	mpu_stats_nontimed_lifetime;
 	packet_id_signalling_stats_t* 			signalling_stats_lifetime;
 
+	uint32_t	packet_counter_value;
 	int						packet_id_missing_n;
 	packet_id_missing_t**	packet_id_missing_vector;
 

@@ -145,8 +145,12 @@ void atsc3_packet_statistics_mmt_stats_populate(udp_packet_t* udp_packet, mmtp_p
 		global_stats->packet_counter_mmtp_packets_missing += packet_mmt_stats->packet_sequence_number_last_gap;
 
 		//push this to our missing packet flow for investigation
-		__PS_STATS_L("packets missing:\t%u.%u.%u.%u:%u\tpacket_id:\t%d\tPSN_from:\t%d\tPSN_to:\t%d\tTotal_missing: %u",
+		__PS_STATS_L("packets missing:\t%u.%u.%u.%u\t%u\tpacket_counter_from:\t%u\tpacket_counter_to:\t%u\ttimestamp_from:\t%u\ttimestamp_to:\t%u\tpacket_id:\t%u\tPSN_from:\t%u\tPSN_to:\t%u\tTotal_missing:\t%u",
 				__toip(packet_mmt_stats),
+				packet_mmt_stats->packet_counter_value,
+				mmtp_payload->mmtp_packet_header.packet_counter,
+				packet_mmt_stats->timestamp,
+				mmtp_payload->mmtp_packet_header.mmtp_timestamp,
 				packet_mmt_stats->packet_id,
 				packet_mmt_stats->packet_sequence_number,
 				mmtp_payload->mmtp_packet_header.packet_sequence_number,
@@ -155,6 +159,7 @@ void atsc3_packet_statistics_mmt_stats_populate(udp_packet_t* udp_packet, mmtp_p
 	}
 
 	//remember, a lot of these values can roll over...
+	packet_mmt_stats->packet_counter_value = mmtp_payload->mmtp_packet_header.packet_counter;
 
 	//if we have a "current" packet sequence number, set it to our last value
 	if(packet_mmt_stats->has_packet_sequence_number) {
