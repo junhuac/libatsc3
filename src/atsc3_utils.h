@@ -46,10 +46,16 @@
 #define MIN_ATSC3_MULTICAST_BLOCK (239 << 24 | 255 << 16)
 #define MAX_ATSC3_MULTICAST_BLOCK (239 << 24 | 255 << 16 | 255 << 8 | 255)
 
+//mDNS destination addr and port - filter this noise out
+#define UDP_FILTER_MDNS_IP_ADDRESS 3758096635
+#define UDP_FILTER_MDNS_PORT 5353
+
+
 long long timediff(struct timeval t1, struct timeval t0);
 
-#define __toip(packet_mmt_stats) (packet_mmt_stats->ip >> 24) & 0xFF, (packet_mmt_stats->ip >> 16) & 0xFF, (packet_mmt_stats->ip >> 8) & 0xFF,  (packet_mmt_stats->ip) & 0xFF,  packet_mmt_stats->port
-//%u.%u.%u.%u:%u
+//convert struct { uint32_t ip, uint16_t port} to bitsift representation
+//printf format: //%u.%u.%u.%u:%u
+#define __toip(packet) (packet->ip >> 24) & 0xFF, (packet->ip >> 16) & 0xFF, (packet->ip >> 8) & 0xFF,  (packet->ip) & 0xFF,  packet->port
 #define __toipnonstruct(ip) (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF
 #define __toipandportnonstruct(ip, port) (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF, port
 
